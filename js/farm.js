@@ -38,20 +38,17 @@ export class Farm {
     return true;
   }
 
-  // returns { type, quality, coins } on a good harvest, { withered:true } if clearing a
-  // dead crop, or null if nothing to do.
+  // returns { type } on a good harvest (crop goes to storage), { withered:true } if
+  // clearing a dead crop, or null if nothing to do.
   harvest(tx, ty) {
     const t = this.get(tx, ty);
     if (!t || !t.crop) return null;
     const c = t.crop;
     if (c.withered) { t.crop = null; return { withered: true }; }
     if (c.stage < 5) return null;
-    const quality = rollQuality();
-    const base = CROPS[c.type].price;
-    const coins = Math.round(base * quality.mult);
     const type = c.type;
     t.crop = null; // soil stays tilled, ready to replant
-    return { type, quality: quality.key, label: quality.label, coins };
+    return { type };
   }
 
   // host-only growth simulation

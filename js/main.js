@@ -1,5 +1,5 @@
 // LANTLIV — game entry: loop, camera, rendering, tool actions, multiplayer glue
-import { TILE, ZOOM, DAY_LENGTH } from './config.js';
+import { TILE, ZOOM, DAY_LENGTH, CROPS, CROP_KEYS } from './config.js';
 import { loadAssets } from './assets.js';
 import { Input } from './input.js';
 import { World } from './world.js';
@@ -9,6 +9,7 @@ import { Herd } from './animals.js';
 import { Net } from './net.js';
 import { ui } from './ui.js';
 import { getActiveMap, clearActiveMap } from './maps.js';
+import { Inventory } from './economy.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('game');
@@ -20,10 +21,11 @@ const net = new Net();
 const others = new Map(); // id -> Player (remote)
 
 let world, farm, herd, me;
+let inv = new Inventory();
 const game = {
   running: false, isHost: false, myName: 'Bonde',
-  coins: 0, day: 1, dayTime: DAY_LENGTH * 0.25, roomCode: null,
-  stateDirty: false, _tPlayers: 0, _tState: 0, _tHud: 0,
+  day: 1, dayTime: DAY_LENGTH * 0.25, roomCode: null, activeSeed: 'carrot',
+  stateDirty: false, _tPlayers: 0, _tState: 0, _tHud: 0, _tSave: 0,
 };
 
 // ---------- setup ----------
@@ -43,7 +45,7 @@ function getIntent(tool, tx, ty) {
   if (t && t.crop && (t.crop.stage >= 5 || t.crop.withered)) return { kind: 'harvest', anim: 'scythe' };
   if (tool === 'hoe') { if (world.isFarmable(tx, ty) && !t) return { kind: 'till', anim: 'hoe' }; }
   else if (tool === 'watering') { if (t) return { kind: 'water', anim: 'watering' }; }
-  else if (tool.startsWith('seed_')) { if (t && !t.crop) return { kind: 'plant', anim: 'hoe', seed: tool.slice(5) }; }
+  else if (tool === 'seed') { if (t && !t.crop && inv.seedCount(game.activeSeed) > 0) return { kind: 'plant', anim: 'hoe', seed: game.activeSeed }; }
   return null;
 }
 
@@ -62,15 +64,15 @@ function doAction() {
 function hostApply(intent, tx, ty) {
   if (intent.kind === 'till') farm.till(tx, ty);
   else if (intent.kind === 'water') farm.water(tx, ty);
-  else if (intent.kind === 'plant') farm.plant(tx, ty, intent.seed);
+  else if (intent.kind === 'plant') { if (inv.useSeed(intent.seed)) farm.plant(tx, ty, intent.seed); }
   else if (intent.kind === 'harvest') {
     const r = farm.harvest(tx, ty);
     const wx = tx * TILE + 8, wy = ty * TILE;
-    if (r && r.coins) {
-      game.coins += r.coins;
-      const txt = `+${r.coins}🪙${r.label ? ' ' + r.label : ''}`;
-      ui.addFloat(wx, wy, txt, '#ffe08a');
-      net.broadcast('fx', { wx, wy, text: txt, color: '#ffe08a' });
+    if (r && r.type) {
+      inv.addHarvest(r.type);
+      const txt = `+1 ${CROPS[r.type].emoji}`;
+      ui.addFloat(wx, wy, txt, '#cdeffd');
+      net.broadcast('fx', { wx, wy, text: txt, color: '#cdeffd' });
     } else if (r && r.withered) {
       ui.addFloat(wx, wy, 'vissnat', '#c9a15a');
       net.broadcast('fx', { wx, wy, text: 'vissnat', color: '#c9a15a' });
@@ -78,6 +80,26 @@ function hostApply(intent, tx, ty) {
   }
   game.stateDirty = true;
 }
+
+// ---------- shop / inventory actions (host-authoritative) ----------
+function shopAction(kind, key) {
+  if (game.isHost) hostShop(kind, key);
+  else net.send('shop', { kind, key });
+}
+function hostShop(kind, key) {
+  if (kind === 'buy') { if (inv.buySeed(key)) ui.toast('Köpte ' + CROPS[key].name + '-frö'); else ui.toast('Inte råd!'); }
+  else if (kind === 'sellAll') { const g = inv.sellAll(); ui.toast(g > 0 ? 'Sålde för ' + g + ' 🪙' : 'Inget att sälja'); }
+  else if (kind === 'sellOne') inv.sellOne(key);
+  game.stateDirty = true;
+  refreshEconomyUI();
+}
+function refreshEconomyUI() {
+  ui.setCoins(inv.coins);
+  ui.setSeedSlot(CROPS[game.activeSeed], inv.seedCount(game.activeSeed));
+  ui.updateBag(inv, game.activeSeed);
+  ui.updateShop(inv);
+}
+function setActiveSeed(key) { game.activeSeed = key; me.tool = 'seed'; ui.setSeedSlot(CROPS[key], inv.seedCount(key)); ui.setToolBySeed(); }
 
 function selectTool(n) { ui.setTool(n); me.tool = ui.currentTool(); }
 
@@ -114,9 +136,12 @@ function update(dt) {
   game._tHud += dt;
   if (game._tHud >= 0.25) {
     game._tHud = 0;
-    ui.setCoins(game.coins); ui.setDay(game.day);
+    ui.setCoins(inv.coins); ui.setDay(game.day);
     if (net.mode) ui.setRoom(net.code || game.roomCode || '—', game.isHost ? net.playerCount : others.size + 1);
   }
+
+  // autosave (host)
+  if (game.isHost) { game._tSave += dt; if (game._tSave >= 10) { game._tSave = 0; saveGame(); } }
 
   updateCamera();
 }
@@ -177,8 +202,8 @@ function broadcastPlayers() {
 }
 function broadcastState() {
   net.broadcast('state', {
-    f: farm.serialize(), h: herd.serialize(),
-    c: game.coins, d: game.day, t: Math.round(game.dayTime),
+    f: farm.serialize(), h: herd.serialize(), i: inv.serialize(),
+    d: game.day, t: Math.round(game.dayTime),
   });
 }
 
@@ -195,13 +220,14 @@ net.on({
       if (t === 'hello') { ensurePlayer(fromId, d.name); net.sendTo(fromId, 'state', stateMsg()); broadcastPlayers(); }
       else if (t === 'xf') { const p = ensurePlayer(fromId, d.n); p.applySnapshot(d); }
       else if (t === 'act') hostApply({ kind: d.kind, seed: d.seed }, d.tx, d.ty);
+      else if (t === 'shop') hostShop(d.kind, d.key);
     } else {
       if (t === 'map') {
         rebuildWorld(d);
       } else if (t === 'state') {
-        farm.apply(d.f); herd.apply(d.h);
-        game.coins = d.c; game.day = d.d; game.dayTime = d.t;
-        ui.setCoins(d.c); ui.setDay(d.d);
+        farm.apply(d.f); herd.apply(d.h); inv.apply(d.i);
+        game.day = d.d; game.dayTime = d.t;
+        ui.setDay(d.d); refreshEconomyUI();
       } else if (t === 'players') {
         for (const id in d) { if (id === net.myId) continue; ensurePlayer(id).applySnapshot(d[id]); }
         for (const id of [...others.keys()]) if (!(id in d)) others.delete(id);
@@ -215,7 +241,23 @@ net.on({
 });
 
 function stateMsg() {
-  return { f: farm.serialize(), h: herd.serialize(), c: game.coins, d: game.day, t: Math.round(game.dayTime) };
+  return { f: farm.serialize(), h: herd.serialize(), i: inv.serialize(), d: game.day, t: Math.round(game.dayTime) };
+}
+
+// ---------- save / load (host only, localStorage) ----------
+function saveKey() { return 'lantliv_save' + (game.mapData ? '_custom' : ''); }
+function saveGame() {
+  if (!game.isHost) return;
+  try { localStorage.setItem(saveKey(), JSON.stringify({ inv: inv.serialize(), farm: farm.serialize(), day: game.day, t: Math.round(game.dayTime) })); } catch {}
+}
+function loadGame() {
+  try {
+    const s = localStorage.getItem(saveKey()); if (!s) return false;
+    const d = JSON.parse(s);
+    inv.apply(d.inv); farm.apply(d.farm);
+    game.day = d.day || 1; game.dayTime = d.t ?? DAY_LENGTH * 0.25;
+    return true;
+  } catch { return false; }
 }
 
 // ---------- game start / menu ----------
@@ -228,9 +270,12 @@ function newGame(isHost, mapData) {
   me = new Player({ isLocal: true, name: game.myName, char: ui.selectedChar, x: world.spawn.x, y: world.spawn.y });
   me.tool = ui.currentTool();
   others.clear();
-  game.coins = 0; game.day = 1; game.dayTime = DAY_LENGTH * 0.25;
-  if (isHost) spawnHerd();
-  ui.setCoins(0); ui.setDay(1);
+  inv = new Inventory();
+  game.day = 1; game.dayTime = DAY_LENGTH * 0.25; game.activeSeed = 'carrot';
+  if (isHost) { spawnHerd(); if (loadGame()) ui.toast('Laddade din sparade gård 🌾'); }
+  ui.setDay(game.day);
+  refreshEconomyUI();
+  ui.setSeedSlot(CROPS[game.activeSeed], inv.seedCount(game.activeSeed));
   ui.showMenu(false);
   game.running = true;
 }
@@ -241,6 +286,7 @@ function spawnHerd() {
 }
 
 function backToMenu() {
+  saveGame();
   game.running = false;
   net.destroy();
   others.clear();
@@ -296,7 +342,14 @@ async function boot() {
     onSelectTool: (n) => { if (game.running) selectTool(n); },
     onSolo: startSolo, onHost: startHost, onJoin: startJoin,
     onAction: () => { if (game.running) doAction(); },
+    onSelectSeed: (k) => { if (game.running) setActiveSeed(k); },
+    onBuy: (k) => { if (game.running) shopAction('buy', k); },
+    onSellAll: () => { if (game.running) shopAction('sellAll'); },
+    onSellOne: (k) => { if (game.running) shopAction('sellOne', k); },
+    onOpenBag: () => refreshEconomyUI(),
+    onOpenShop: () => refreshEconomyUI(),
   });
+  window.addEventListener('beforeunload', saveGame);
   Input.init(canvas);
   ui.setMenuStatus('Laddar sprites…');
   try { await loadAssets(); } catch (e) { ui.setMenuStatus('Fel: ' + e.message); return; }

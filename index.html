@@ -76,6 +76,34 @@
     background: rgba(20,16,12,.92); border: 2px solid var(--line); border-radius: 12px;
     padding: 10px 18px; font-weight: 600; font-size: 15px; max-width: 90vw; text-align: center; }
 
+  .slot .cnt { position: absolute; bottom: 2px; right: 5px; font-size: 10px; font-weight: 800; color: var(--gold); }
+  .slot.actionslot { background: var(--panel2); }
+
+  /* ---------- Bag & Shop panels ---------- */
+  .panel { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center;
+    background: rgba(10,8,5,.55); }
+  .panel.hidden { display: none; }
+  .panelbox { background: rgba(30,24,18,.98); border: 2px solid var(--line); border-radius: 16px;
+    width: min(560px, 94vw); max-height: 84vh; overflow-y: auto; padding: 16px 18px; }
+  .panelhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .panelhead h2 { margin: 0; font-size: 21px; }
+  .panelhead .x { background: #47413a; color: #fff; border: none; border-radius: 8px; width: 36px; height: 36px; font-size: 17px; cursor: pointer; }
+  .psub { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; opacity: .55; margin: 14px 0 6px; }
+  .coinline { font-weight: 800; color: var(--gold); font-size: 17px; }
+  .invgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 8px; }
+  .invtile { background: var(--panel); border: 2px solid transparent; border-radius: 10px; padding: 8px 4px; text-align: center; cursor: pointer; }
+  .invtile .e { font-size: 26px; display: block; } .invtile .c { font-size: 12px; font-weight: 800; color: var(--gold); }
+  .invtile .n { font-size: 10px; opacity: .8; display: block; }
+  .invtile.active { border-color: var(--gold); background: var(--panel2); }
+  .shopgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 7px; }
+  .shoptile { display: flex; align-items: center; gap: 7px; background: var(--panel); border: 2px solid transparent;
+    border-radius: 9px; padding: 7px 9px; cursor: pointer; font-size: 13px; }
+  .shoptile .e { font-size: 20px; } .shoptile .n { flex: 1; } .shoptile .p { font-weight: 700; color: var(--gold); }
+  .shoptile.poor { opacity: .45; } .shoptile.sellable { border-color: color-mix(in srgb, #6aa84f 55%, transparent); }
+  .panelbox .empty { opacity: .6; font-size: 13px; padding: 8px 4px; }
+  #sellAll { margin-top: 12px; width: 100%; background: #6aa84f; color: #12280c; border: none; border-radius: 10px;
+    padding: 12px; font-weight: 800; font-size: 15px; cursor: pointer; }
+
   @media (max-width: 560px) {
     .slot { width: 50px; height: 52px; } .slot .ic { font-size: 21px; } .slot .lb { display: none; }
     #actionBtn { width: 84px; height: 84px; }
@@ -96,6 +124,30 @@
   <div id="hotbar"></div>
   <div id="actionBtn"><span class="big">✋</span><span class="lbl" id="actionLabel">Hacka</span></div>
   <div id="toast" class="hidden"></div>
+
+  <!-- Bag -->
+  <div id="bagPanel" class="panel hidden">
+    <div class="panelbox">
+      <div class="panelhead"><h2>🎒 Väska</h2><button id="bagClose" class="x">✕</button></div>
+      <div class="psub">Frön — tryck för att välja</div>
+      <div id="bagSeeds" class="invgrid"></div>
+      <div class="psub">Skörd i lagret</div>
+      <div id="bagHarvest" class="invgrid"></div>
+    </div>
+  </div>
+
+  <!-- Shop -->
+  <div id="shopPanel" class="panel hidden">
+    <div class="panelbox">
+      <div class="panelhead"><h2>🛒 Butik</h2><button id="shopClose" class="x">✕</button></div>
+      <div class="coinline">🪙 <span id="shopCoins">0</span></div>
+      <div class="psub">Köp frön</div>
+      <div id="shopBuy" class="shopgrid"></div>
+      <div class="psub">Sälj skörd — tryck för att sälja en</div>
+      <div id="shopSell" class="shopgrid"></div>
+      <button id="sellAll">Sälj allt 🪙</button>
+    </div>
+  </div>
 
   <!-- Menu -->
   <div id="menu">

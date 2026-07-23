@@ -1,14 +1,14 @@
-// LANTLIV — HUD, hotbar, menu, floating text, on-screen touch controls
-import { ZOOM } from './config.js';
+// LANTLIV — HUD, hotbar, bag & shop panels, menu, floating text, touch controls
+import { ZOOM, CROPS, CROP_KEYS } from './config.js';
 import { A, CHARACTERS } from './assets.js';
 
+// hotbar: 3 tools + 2 panel buttons
 export const HOTBAR = [
-  { id: 'hoe',                icon: '⛏️', label: 'Hacka' },
-  { id: 'watering',           icon: '💧', label: 'Vattna' },
-  { id: 'seed_carrot',        icon: '🥕', label: 'Morot' },
-  { id: 'seed_cauliflower',   icon: '🥦', label: 'Blomkål' },
-  { id: 'seed_pumpkin',       icon: '🎃', label: 'Pumpa' },
-  { id: 'seed_strawberry',    icon: '🍓', label: 'Jordgubbe' },
+  { id: 'hoe',      icon: '⛏️', label: 'Hacka' },
+  { id: 'watering', icon: '💧', label: 'Vattna' },
+  { id: 'seed',     icon: '🌱', label: 'Frö', dynamic: true },
+  { id: 'bag',      icon: '🎒', label: 'Väska', action: 'bag' },
+  { id: 'shop',     icon: '🛒', label: 'Butik', action: 'shop' },
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -16,7 +16,6 @@ const $ = (id) => document.getElementById(id);
 class UI {
   constructor() { this.floats = []; this.selected = 1; this.selectedChar = 'bunny'; }
 
-  // built after assets load so we can draw each character's sprite thumbnail
   buildCharPicker() {
     const wrap = $('charPick');
     wrap.innerHTML = '';
@@ -26,7 +25,7 @@ class UI {
       const cv = document.createElement('canvas'); cv.width = 40; cv.height = 40;
       const cx = cv.getContext('2d'); cx.imageSmoothingEnabled = false;
       const img = A[c.key + '_idle'];
-      if (img) cx.drawImage(img, 0, 48, 48, 48, -4, -6, 52, 52); // down-facing frame 0, cropped a bit
+      if (img) cx.drawImage(img, 0, 48, 48, 48, -4, -6, 52, 52);
       const lb = document.createElement('div'); lb.className = 'cl'; lb.textContent = c.label;
       el.appendChild(cv); el.appendChild(lb);
       el.addEventListener('click', () => {
@@ -40,17 +39,19 @@ class UI {
 
   build(handlers) {
     this.handlers = handlers;
-    // hotbar slots
     const bar = $('hotbar');
     HOTBAR.forEach((t, i) => {
       const el = document.createElement('div');
-      el.className = 'slot';
+      el.className = 'slot' + (t.action ? ' actionslot' : '');
       el.dataset.slot = i + 1;
       el.innerHTML = `<span class="num">${i + 1}</span><span class="ic">${t.icon}</span><span class="lb">${t.label}</span>`;
-      el.addEventListener('click', () => handlers.onSelectTool(i + 1));
+      el.addEventListener('click', () => {
+        if (t.action) this.openPanel(t.action);
+        else handlers.onSelectTool(i + 1);
+      });
       bar.appendChild(el);
     });
-    // menu buttons
+    // menu
     $('btnSolo').addEventListener('click', () => handlers.onSolo(this._name()));
     $('btnHost').addEventListener('click', () => handlers.onHost(this._name()));
     $('btnJoinShow').addEventListener('click', () => { $('joinRow').classList.toggle('hidden'); $('codeInput').focus(); });
@@ -59,26 +60,96 @@ class UI {
       if (code.length === 4) handlers.onJoin(this._name(), code);
     });
     $('btnEditor').addEventListener('click', () => { location.href = 'editor.html'; });
-    // action button (touch)
     $('actionBtn').addEventListener('click', () => handlers.onAction());
+    // panels
+    $('bagClose').addEventListener('click', () => this.closePanels());
+    $('shopClose').addEventListener('click', () => this.closePanels());
+    $('sellAll').addEventListener('click', () => handlers.onSellAll());
     this.setTool(1);
   }
 
-  _name() {
-    const n = $('nameInput').value.trim();
-    return n || 'Bonde';
-  }
+  _name() { return $('nameInput').value.trim() || 'Bonde'; }
 
   setTool(n) {
-    this.selected = n;
-    document.querySelectorAll('#hotbar .slot').forEach((el) => {
-      el.classList.toggle('active', +el.dataset.slot === n);
-    });
     const t = HOTBAR[n - 1];
+    if (!t || t.action) { this.openPanel(t?.action); return; }
+    this.selected = n;
+    document.querySelectorAll('#hotbar .slot').forEach((el) => el.classList.toggle('active', +el.dataset.slot === n));
     $('actionLabel').textContent = t.label;
   }
-
   currentTool() { return HOTBAR[this.selected - 1].id; }
+
+  // seed slot shows the active seed (emoji + name + count)
+  setSeedSlot(crop, count) {
+    const el = document.querySelector('#hotbar .slot[data-slot="3"]');
+    if (!el) return;
+    el.querySelector('.ic').textContent = crop.emoji;
+    el.querySelector('.lb').textContent = crop.name;
+    let badge = el.querySelector('.cnt');
+    if (!badge) { badge = document.createElement('span'); badge.className = 'cnt'; el.appendChild(badge); }
+    badge.textContent = '×' + count;
+    if (this.selected === 3) $('actionLabel').textContent = crop.name;
+  }
+  setToolBySeed() { this.setTool(3); }
+
+  // ---------- panels ----------
+  openPanel(which) {
+    if (!which) return;
+    this.closePanels();
+    if (which === 'bag') { $('bagPanel').classList.remove('hidden'); this.handlers.onOpenBag?.(); }
+    if (which === 'shop') { $('shopPanel').classList.remove('hidden'); this.handlers.onOpenShop?.(); }
+  }
+  closePanels() { $('bagPanel').classList.add('hidden'); $('shopPanel').classList.add('hidden'); }
+
+  updateBag(inv, activeSeed) {
+    const sg = $('bagSeeds'); if (!sg) return;
+    sg.innerHTML = '';
+    const owned = CROP_KEYS.filter((k) => inv.seedCount(k) > 0);
+    if (!owned.length) sg.innerHTML = '<div class="empty">Inga frön — köp i butiken 🛒</div>';
+    for (const k of owned) {
+      const c = CROPS[k];
+      const el = document.createElement('div');
+      el.className = 'invtile' + (k === activeSeed ? ' active' : '');
+      el.innerHTML = `<span class="e">${c.emoji}</span><span class="c">×${inv.seedCount(k)}</span><span class="n">${c.name}</span>`;
+      el.addEventListener('click', () => { this.handlers.onSelectSeed(k); this.closePanels(); });
+      sg.appendChild(el);
+    }
+    const hg = $('bagHarvest'); hg.innerHTML = '';
+    const held = CROP_KEYS.filter((k) => inv.harvestCount(k) > 0);
+    if (!held.length) hg.innerHTML = '<div class="empty">Inget skördat än</div>';
+    for (const k of held) {
+      const c = CROPS[k];
+      const el = document.createElement('div');
+      el.className = 'invtile';
+      el.innerHTML = `<span class="e">${c.emoji}</span><span class="c">×${inv.harvestCount(k)}</span><span class="n">${c.name}</span>`;
+      hg.appendChild(el);
+    }
+  }
+
+  updateShop(inv) {
+    $('shopCoins').textContent = inv.coins;
+    const buy = $('shopBuy'); if (!buy) return;
+    buy.innerHTML = '';
+    for (const k of CROP_KEYS) {
+      const c = CROPS[k];
+      const el = document.createElement('div');
+      el.className = 'shoptile' + (inv.coins < c.seed ? ' poor' : '');
+      el.innerHTML = `<span class="e">${c.emoji}</span><span class="n">${c.name}</span><span class="p">🪙${c.seed}</span>`;
+      el.addEventListener('click', () => this.handlers.onBuy(k));
+      buy.appendChild(el);
+    }
+    const sell = $('shopSell'); sell.innerHTML = '';
+    const held = CROP_KEYS.filter((k) => inv.harvestCount(k) > 0);
+    if (!held.length) sell.innerHTML = '<div class="empty">Inget att sälja — skörda först!</div>';
+    for (const k of held) {
+      const c = CROPS[k];
+      const el = document.createElement('div');
+      el.className = 'shoptile sellable';
+      el.innerHTML = `<span class="e">${c.emoji}</span><span class="n">${c.name} ×${inv.harvestCount(k)}</span><span class="p">🪙${c.price}</span>`;
+      el.addEventListener('click', () => this.handlers.onSellOne(k));
+      sell.appendChild(el);
+    }
+  }
 
   setCoins(c) { $('coins').textContent = c; }
   setDay(d) { $('day').textContent = d; }
@@ -87,11 +158,10 @@ class UI {
     const badge = $('roomBadge');
     if (!code) { badge.classList.add('hidden'); return; }
     badge.classList.remove('hidden');
-    $('roomCode').textContent = code;
-    $('roomCount').textContent = count;
+    $('roomCode').textContent = code; $('roomCount').textContent = count;
   }
 
-  toast(msg, ms = 2600) {
+  toast(msg, ms = 2400) {
     const t = $('toast');
     t.textContent = msg; t.classList.remove('hidden');
     clearTimeout(this._toastT);
@@ -101,9 +171,7 @@ class UI {
   showMenu(show) { $('menu').classList.toggle('hidden', !show); }
   setMenuStatus(msg) { $('menuStatus').textContent = msg || ''; }
 
-  addFloat(wx, wy, text, color = '#fff') {
-    this.floats.push({ wx, wy, text, color, t: 0, ttl: 1.3 });
-  }
+  addFloat(wx, wy, text, color = '#fff') { this.floats.push({ wx, wy, text, color, t: 0, ttl: 1.3 }); }
 
   drawFloats(ctx, cam, dt) {
     ctx.textAlign = 'center';
@@ -115,13 +183,10 @@ class UI {
       const sx = Math.round((f.wx - cam.x) * ZOOM);
       const sy = Math.round((f.wy - cam.y) * ZOOM) - f.t * 40;
       ctx.globalAlpha = a;
-      ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-      ctx.fillStyle = f.color;
-      ctx.strokeText(f.text, sx, sy);
-      ctx.fillText(f.text, sx, sy);
+      ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.fillStyle = f.color;
+      ctx.strokeText(f.text, sx, sy); ctx.fillText(f.text, sx, sy);
     }
-    ctx.globalAlpha = 1;
-    ctx.textAlign = 'left';
+    ctx.globalAlpha = 1; ctx.textAlign = 'left';
     this.floats = this.floats.filter((f) => f.t < f.ttl);
   }
 }

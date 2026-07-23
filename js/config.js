@@ -16,14 +16,38 @@ export const WITHER_TIME = 240;  // unwatered seconds before a growing crop with
 
 export const DAY_LENGTH = 240;   // seconds per in-game day (cosmetic day/night)
 
-// Crop definitions — column in crops.png, display name, base coin value
+// Crop definitions — column in crops.png (1-26), display name, sell price, seed cost, emoji
+// Growth uses the shared 5-stage system (GROW_ROWS). seed = buy cost in the shop.
 export const CROPS = {
-  carrot:      { col: 1, name: 'Morot',     price: 12, color: '#e8873a' },
-  cauliflower: { col: 2, name: 'Blomkål',   price: 22, color: '#e9f0d8' },
-  pumpkin:     { col: 3, name: 'Pumpa',     price: 34, color: '#e07b2e' },
-  strawberry:  { col: 4, name: 'Jordgubbe', price: 16, color: '#e0455e' },
+  carrot:      { col: 1,  name: 'Morot',      price: 14, seed: 6,  emoji: '🥕' },
+  cauliflower: { col: 2,  name: 'Blomkål',    price: 24, seed: 10, emoji: '🥦' },
+  pumpkin:     { col: 3,  name: 'Pumpa',      price: 40, seed: 16, emoji: '🎃' },
+  strawberry:  { col: 4,  name: 'Jordgubbe',  price: 18, seed: 8,  emoji: '🍓' },
+  corn:        { col: 5,  name: 'Majs',       price: 22, seed: 9,  emoji: '🌽' },
+  beet:        { col: 6,  name: 'Rödbeta',    price: 16, seed: 7,  emoji: '🫜' },
+  pineapple:   { col: 7,  name: 'Ananas',     price: 55, seed: 22, emoji: '🍍' },
+  tomato:      { col: 8,  name: 'Tomat',      price: 20, seed: 8,  emoji: '🍅' },
+  chili:       { col: 9,  name: 'Chili',      price: 26, seed: 11, emoji: '🌶️' },
+  radish_w:    { col: 10, name: 'Rättika',    price: 15, seed: 6,  emoji: '🥬' },
+  onion:       { col: 11, name: 'Lök',        price: 18, seed: 8,  emoji: '🧅' },
+  radish:      { col: 12, name: 'Rädisa',     price: 12, seed: 5,  emoji: '🌱' },
+  wheat:       { col: 13, name: 'Vete',       price: 10, seed: 4,  emoji: '🌾' },
+  sunflower:   { col: 14, name: 'Solros',     price: 30, seed: 12, emoji: '🌻' },
+  potato:      { col: 15, name: 'Potatis',    price: 16, seed: 7,  emoji: '🥔' },
+  rose:        { col: 16, name: 'Ros',        price: 34, seed: 14, emoji: '🌹' },
+  tulip:       { col: 17, name: 'Tulpan',     price: 28, seed: 11, emoji: '🌷' },
+  daisy:       { col: 18, name: 'Prästkrage', price: 24, seed: 10, emoji: '🌼' },
+  bluebell:    { col: 19, name: 'Blåklocka',  price: 26, seed: 11, emoji: '💠' },
+  lettuce:     { col: 20, name: 'Sallad',     price: 14, seed: 6,  emoji: '🥗' },
+  broccoli:    { col: 21, name: 'Broccoli',   price: 22, seed: 9,  emoji: '🥦' },
+  blueberry:   { col: 22, name: 'Blåbär',     price: 32, seed: 13, emoji: '🫐' },
+  apple:       { col: 23, name: 'Äpple',      price: 30, seed: 12, emoji: '🍎' },
+  watermelon:  { col: 24, name: 'Vattenmelon',price: 45, seed: 18, emoji: '🍉' },
+  eggplant:    { col: 25, name: 'Aubergine',  price: 28, seed: 11, emoji: '🍆' },
+  grape:       { col: 26, name: 'Vindruvor',  price: 38, seed: 15, emoji: '🍇' },
 };
-export const CROP_KEYS = ['carrot', 'cauliflower', 'pumpkin', 'strawberry'];
+export const CROP_KEYS = Object.keys(CROPS);
+export const START_COINS = 60;
 
 // crops.png tile coordinates (col, row) @ 16px
 export const GROW_ROWS = [2, 4, 6, 8, 10];              // stage 1..5 plant rows
