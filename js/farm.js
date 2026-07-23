@@ -1,7 +1,7 @@
 // LANTLIV — farming: tilled soil, crops, growth logic, harvest
 import {
   TILE, ZOOM, STAGE_TIME, WET_TIME, WITHER_TIME,
-  CROPS, CROP_KEYS, GROW_ROWS, WITHER_ROWS, SOIL_DRY, SOIL_WET, QUALITY,
+  CROPS, CROP_KEYS, GROW_ROWS, WITHER_ROWS, DIRT_AUTOTILE,
 } from './config.js';
 import { drawTile } from './assets.js';
 
@@ -70,16 +70,28 @@ export class Farm {
     }
   }
 
+  // tilled soil autotiles with a grass border (blends softly into the lawn)
+  _soilTile(tx, ty) {
+    const has = (x, y) => this.tiles.has(key(x, y));
+    const gN = !has(tx, ty - 1), gS = !has(tx, ty + 1), gW = !has(tx - 1, ty), gE = !has(tx + 1, ty);
+    const D = DIRT_AUTOTILE;
+    if (gN && gW) return D.tl; if (gN && gE) return D.tr;
+    if (gS && gW) return D.bl; if (gS && gE) return D.br;
+    if (gN) return D.t; if (gS) return D.b; if (gW) return D.l; if (gE) return D.r;
+    return D.c;
+  }
+
   // --- rendering (soil + crops are short; drawn on the ground layer) ---
   draw(ctx, cam, vw, vh) {
+    const s = TILE * ZOOM + 1;
     for (const [k, t] of this.tiles) {
       const [tx, ty] = k.split(',').map(Number);
-      const wx = tx * TILE, wy = ty * TILE;
-      const dx = Math.round((wx - cam.x) * ZOOM);
-      const dy = Math.round((wy - cam.y) * ZOOM);
-      if (dx < -TILE * ZOOM || dy < -TILE * ZOOM || dx > vw || dy > vh) continue;
-      const soil = t.wet ? SOIL_WET : SOIL_DRY;
-      drawTile(ctx, 'crops', soil.col, soil.row, dx, dy, TILE * ZOOM + 1);
+      const dx = Math.round((tx * TILE - cam.x) * ZOOM);
+      const dy = Math.round((ty * TILE - cam.y) * ZOOM);
+      if (dx < -s || dy < -s || dx > vw || dy > vh) continue;
+      const soil = this._soilTile(tx, ty);
+      drawTile(ctx, 'grass', soil.col, soil.row, dx, dy, s);
+      if (t.wet) { ctx.fillStyle = 'rgba(45,28,12,0.30)'; ctx.fillRect(dx, dy, s, s); } // watered = darker
       const c = t.crop;
       if (c) {
         const col = CROPS[c.type].col;
@@ -107,10 +119,4 @@ export class Farm {
       this.tiles.set(key(tx, ty), { wet: !!wet, wetTimer: 0, crop });
     }
   }
-}
-
-function rollQuality() {
-  const r = Math.random();
-  for (const q of QUALITY) if (r < q.chance) return q;
-  return QUALITY[QUALITY.length - 1];
 }
