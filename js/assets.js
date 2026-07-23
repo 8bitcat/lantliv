@@ -17,6 +17,7 @@ export const ANIMAL_KEYS = ['chicken', 'chick', 'cow', 'calf', 'goat', 'babygoat
 const FILES = {
   crops:    'assets/tiles/crops.png',
   grass:    'assets/tiles/grass.png',
+  grassedge: 'assets/tiles/grassedge.png',
   nature:   'assets/tiles/nature.png',
   exterior: 'assets/tiles/exterior.png',
   house:    'assets/tiles/house.png',

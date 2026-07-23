@@ -266,6 +266,7 @@ function newGame(isHost, mapData) {
   game.mapData = mapData || null;
   world = new World(game.mapData);
   farm = new Farm(world);
+  world.farm = farm; // world renders unified dirt (world plots + tilled soil)
   herd = new Herd();
   me = new Player({ isLocal: true, name: game.myName, char: ui.selectedChar, x: world.spawn.x, y: world.spawn.y });
   me.tool = ui.currentTool();
@@ -323,6 +324,7 @@ function rebuildWorld(mapData) {
   game.mapData = mapData || null;
   world = new World(game.mapData);
   farm = new Farm(world);
+  world.farm = farm; // world renders unified dirt (world plots + tilled soil)
   me.x = Math.min(Math.max(me.x, TILE), (world.w - 1) * TILE);
   me.y = Math.min(Math.max(me.y, TILE * 2), (world.h - 1) * TILE);
 }

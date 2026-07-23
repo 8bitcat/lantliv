@@ -1,5 +1,5 @@
 // LANTLIV — world: ground tiles, decorations, collision, camera-aware rendering
-import { TILE, ZOOM, MAP_W, MAP_H, T_GRASS, T_GRASS_DETAIL, T_DIRT, T_WATER, DIRT_AUTOTILE } from './config.js';
+import { TILE, ZOOM, MAP_W, MAP_H, T_GRASS, T_GRASS_DETAIL, T_DIRT, T_WATER } from './config.js';
 import { A, drawTile } from './assets.js';
 
 const WORLD_SEED = 20260723; // fixed -> every player generates an identical map
@@ -163,16 +163,10 @@ export class World {
     return g === 0 || g === 1;
   }
 
-  // pick the correct autotile dirt tile based on which orthogonal neighbours are non-dirt
-  _dirtTile(tx, ty) {
-    const isDirt = (x, y) => this.inBounds(x, y) && this.ground[y][x] === 1;
-    const gN = !isDirt(tx, ty - 1), gS = !isDirt(tx, ty + 1);
-    const gW = !isDirt(tx - 1, ty), gE = !isDirt(tx + 1, ty);
-    const D = DIRT_AUTOTILE;
-    if (gN && gW) return D.tl; if (gN && gE) return D.tr;
-    if (gS && gW) return D.bl; if (gS && gE) return D.br;
-    if (gN) return D.t; if (gS) return D.b; if (gW) return D.l; if (gE) return D.r;
-    return D.c;
+  // A tile is "dirt" if it's the world dirt-plot OR the player has tilled it.
+  // Unified so the two never fight over borders. (this.farm set by main.)
+  isDirtAt(tx, ty) {
+    return this.inBounds(tx, ty) && (this.ground[ty][tx] === 1 || (this.farm && this.farm.isTilled(tx, ty)));
   }
 
   // pixel-rect collision for a moving body (feet box)
@@ -190,14 +184,31 @@ export class World {
     const y0 = Math.max(0, Math.floor(cam.y / TILE));
     const x1 = Math.min(this.w - 1, Math.ceil((cam.x + vw / ZOOM) / TILE));
     const y1 = Math.min(this.h - 1, Math.ceil((cam.y + vh / ZOOM) / TILE));
+    const s = TILE * ZOOM + 1;
+    const edge = A.grassedge;
     for (let ty = y0; ty <= y1; ty++) {
       for (let tx = x0; tx <= x1; tx++) {
-        const g = this.ground[ty][tx];
-        let t = g === 2 ? T_WATER : g === 1 ? this._dirtTile(tx, ty) : T_GRASS;
-        if (g === 0) { const hsh = hash2(tx, ty) % 100; if (hsh < 14) t = T_GRASS_DETAIL[hsh % T_GRASS_DETAIL.length]; }
         const dx = Math.round((tx * TILE - cam.x) * ZOOM);
         const dy = Math.round((ty * TILE - cam.y) * ZOOM);
-        drawTile(ctx, 'grass', t.col, t.row, dx, dy, TILE * ZOOM + 1);
+        if (this.ground[ty][tx] === 2) { drawTile(ctx, 'grass', T_WATER.col, T_WATER.row, dx, dy, s); continue; }
+        if (this.isDirtAt(tx, ty)) {
+          drawTile(ctx, 'grass', T_DIRT.col, T_DIRT.row, dx, dy, s); // flat dirt base
+          if (edge) {                                                // grass fringe overlays
+            const D = (x, y) => this.isDirtAt(x, y);
+            const N = D(tx, ty - 1), So = D(tx, ty + 1), We = D(tx - 1, ty), Ea = D(tx + 1, ty);
+            const ov = (f) => ctx.drawImage(edge, f * 16, 0, 16, 16, dx, dy, s, s);
+            if (!N) ov(0); if (!So) ov(1); if (!We) ov(2); if (!Ea) ov(3);   // edges T B L R
+            if (N && We && !D(tx - 1, ty - 1)) ov(4);                        // inner corners
+            if (N && Ea && !D(tx + 1, ty - 1)) ov(5);
+            if (So && We && !D(tx - 1, ty + 1)) ov(6);
+            if (So && Ea && !D(tx + 1, ty + 1)) ov(7);
+          }
+          continue;
+        }
+        let t = T_GRASS;
+        const hsh = hash2(tx, ty) % 100;
+        if (hsh < 14) t = T_GRASS_DETAIL[hsh % T_GRASS_DETAIL.length];
+        drawTile(ctx, 'grass', t.col, t.row, dx, dy, s);
       }
     }
   }

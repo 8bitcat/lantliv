@@ -1,7 +1,7 @@
 // LANTLIV — farming: tilled soil, crops, growth logic, harvest
 import {
   TILE, ZOOM, STAGE_TIME, WET_TIME, WITHER_TIME,
-  CROPS, CROP_KEYS, GROW_ROWS, WITHER_ROWS, DIRT_AUTOTILE,
+  CROPS, CROP_KEYS, GROW_ROWS, WITHER_ROWS,
 } from './config.js';
 import { drawTile } from './assets.js';
 
@@ -70,18 +70,11 @@ export class Farm {
     }
   }
 
-  // tilled soil autotiles with a grass border (blends softly into the lawn)
-  _soilTile(tx, ty) {
-    const has = (x, y) => this.tiles.has(key(x, y));
-    const gN = !has(tx, ty - 1), gS = !has(tx, ty + 1), gW = !has(tx - 1, ty), gE = !has(tx + 1, ty);
-    const D = DIRT_AUTOTILE;
-    if (gN && gW) return D.tl; if (gN && gE) return D.tr;
-    if (gS && gW) return D.bl; if (gS && gE) return D.br;
-    if (gN) return D.t; if (gS) return D.b; if (gW) return D.l; if (gE) return D.r;
-    return D.c;
-  }
+  // is this tile tilled farm soil? (world renders unified dirt from this)
+  isTilled(tx, ty) { return this.tiles.has(key(tx, ty)); }
 
-  // --- rendering (soil + crops are short; drawn on the ground layer) ---
+  // --- rendering: the soil itself is drawn by the world layer (unified dirt +
+  // grass fringe autotile); here we only add watered darkening + the crop ---
   draw(ctx, cam, vw, vh) {
     const s = TILE * ZOOM + 1;
     for (const [k, t] of this.tiles) {
@@ -89,8 +82,6 @@ export class Farm {
       const dx = Math.round((tx * TILE - cam.x) * ZOOM);
       const dy = Math.round((ty * TILE - cam.y) * ZOOM);
       if (dx < -s || dy < -s || dx > vw || dy > vh) continue;
-      const soil = this._soilTile(tx, ty);
-      drawTile(ctx, 'grass', soil.col, soil.row, dx, dy, s);
       if (t.wet) { ctx.fillStyle = 'rgba(45,28,12,0.30)'; ctx.fillRect(dx, dy, s, s); } // watered = darker
       const c = t.crop;
       if (c) {
