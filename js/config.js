@@ -70,6 +70,40 @@ export const DIRT_AUTOTILE = {
   bl: { col: 15, row: 3 }, b: { col: 16, row: 3 }, br: { col: 17, row: 3 },
 };
 
+// ---------- Fas B: animals & husbandry ----------
+// Adult livestock: the product they give when fed, and the baby they raise from / breed into.
+export const LIVESTOCK = {
+  chicken: { label: 'Höna', product: 'egg',  baby: 'chick',    emoji: '🐔' },
+  cow:     { label: 'Ko',   product: 'milk', baby: 'calf',     emoji: '🐄' },
+  goat:    { label: 'Get',  product: 'milk', baby: 'babygoat', emoji: '🐐' },
+  sheep:   { label: 'Får',  product: 'wool', baby: 'lamb',     emoji: '🐑' },
+  mallard: { label: 'Anka', product: 'egg',  baby: 'duckling', emoji: '🦆' },
+};
+// Baby species -> the adult it grows into (reverse of LIVESTOCK.baby).
+export const BABY_OF = { chick: 'chicken', calf: 'cow', babygoat: 'goat', lamb: 'sheep', duckling: 'mallard' };
+
+// Sellable animal products (kept in inventory.products, sold like harvest).
+export const PRODUCTS = {
+  egg:  { name: 'Ägg',   price: 8,  emoji: '🥚' },
+  milk: { name: 'Mjölk', price: 14, emoji: '🥛' },
+  wool: { name: 'Ull',   price: 20, emoji: '🧶' },
+};
+
+// Buyable baby animals (cheaper than adults — you raise them). key = baby species.
+export const ANIMAL_SHOP = {
+  chick:    { name: 'Kyckling', price: 30, emoji: '🐤' },
+  duckling: { name: 'Ankunge',  price: 34, emoji: '🐣' },
+  lamb:     { name: 'Lamm',     price: 55, emoji: '🐑' },
+  babygoat: { name: 'Killing',  price: 60, emoji: '🐐' },
+  calf:     { name: 'Kalv',     price: 80, emoji: '🐮' },
+};
+
+export const FODER_COST = 3;         // coins per feed unit bought in the shop
+export const PRODUCT_TIME = 40;      // seconds a fed adult takes to make its product
+export const GROW_TIME = DAY_LENGTH * 2; // seconds a baby takes to grow up (~2 days)
+export const BREED_CHANCE = 0.18;    // per-species daily chance of a new baby when ≥2 adults
+export const ANIMAL_REACH = 22;      // world px: how close you interact with an animal
+
 // Quality roll: checked in order, `chance` is the CUMULATIVE upper threshold.
 export const QUALITY = [
   { key: 'purple', chance: 0.05, mult: 3.0, label: '★★★' },

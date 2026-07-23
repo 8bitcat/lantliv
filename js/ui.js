@@ -1,5 +1,5 @@
 // LANTLIV — HUD, hotbar, bag & shop panels, menu, floating text, touch controls
-import { ZOOM, CROPS, CROP_KEYS } from './config.js';
+import { ZOOM, CROPS, CROP_KEYS, PRODUCTS, ANIMAL_SHOP, FODER_COST } from './config.js';
 import { A, CHARACTERS } from './assets.js';
 
 // hotbar: 3 tools + 2 panel buttons
@@ -124,6 +124,20 @@ class UI {
       el.innerHTML = `<span class="e">${c.emoji}</span><span class="c">×${inv.harvestCount(k)}</span><span class="n">${c.name}</span>`;
       hg.appendChild(el);
     }
+
+    const pg = $('bagProducts'); if (pg) {
+      pg.innerHTML = '';
+      const tiles = [];
+      if (inv.foder > 0) tiles.push({ e: '🌾', c: inv.foder, n: 'Foder' });
+      for (const k in PRODUCTS) if (inv.productCount(k) > 0) tiles.push({ e: PRODUCTS[k].emoji, c: inv.productCount(k), n: PRODUCTS[k].name });
+      if (!tiles.length) pg.innerHTML = '<div class="empty">Inga produkter — mata djuren 🐔</div>';
+      for (const t of tiles) {
+        const el = document.createElement('div');
+        el.className = 'invtile';
+        el.innerHTML = `<span class="e">${t.e}</span><span class="c">×${t.c}</span><span class="n">${t.n}</span>`;
+        pg.appendChild(el);
+      }
+    }
   }
 
   updateShop(inv) {
@@ -138,15 +152,43 @@ class UI {
       el.addEventListener('click', () => this.handlers.onBuy(k));
       buy.appendChild(el);
     }
+    // buy foder + baby animals
+    const an = $('shopAnimals');
+    if (an) {
+      an.innerHTML = '';
+      const foder = document.createElement('div');
+      foder.className = 'shoptile' + (inv.coins < FODER_COST ? ' poor' : '');
+      foder.innerHTML = `<span class="e">🌾</span><span class="n">Foder</span><span class="p">🪙${FODER_COST}</span>`;
+      foder.addEventListener('click', () => this.handlers.onBuyFoder());
+      an.appendChild(foder);
+      for (const k in ANIMAL_SHOP) {
+        const a = ANIMAL_SHOP[k];
+        const el = document.createElement('div');
+        el.className = 'shoptile' + (inv.coins < a.price ? ' poor' : '');
+        el.innerHTML = `<span class="e">${a.emoji}</span><span class="n">${a.name}</span><span class="p">🪙${a.price}</span>`;
+        el.addEventListener('click', () => this.handlers.onBuyAnimal(k));
+        an.appendChild(el);
+      }
+    }
+
     const sell = $('shopSell'); sell.innerHTML = '';
     const held = CROP_KEYS.filter((k) => inv.harvestCount(k) > 0);
-    if (!held.length) sell.innerHTML = '<div class="empty">Inget att sälja — skörda först!</div>';
+    const prods = Object.keys(PRODUCTS).filter((k) => inv.productCount(k) > 0);
+    if (!held.length && !prods.length) sell.innerHTML = '<div class="empty">Inget att sälja — skörda eller mjölka först!</div>';
     for (const k of held) {
       const c = CROPS[k];
       const el = document.createElement('div');
       el.className = 'shoptile sellable';
       el.innerHTML = `<span class="e">${c.emoji}</span><span class="n">${c.name} ×${inv.harvestCount(k)}</span><span class="p">🪙${c.price}</span>`;
       el.addEventListener('click', () => this.handlers.onSellOne(k));
+      sell.appendChild(el);
+    }
+    for (const k of prods) {
+      const c = PRODUCTS[k];
+      const el = document.createElement('div');
+      el.className = 'shoptile sellable';
+      el.innerHTML = `<span class="e">${c.emoji}</span><span class="n">${c.name} ×${inv.productCount(k)}</span><span class="p">🪙${c.price}</span>`;
+      el.addEventListener('click', () => this.handlers.onSellProduct(k));
       sell.appendChild(el);
     }
   }
