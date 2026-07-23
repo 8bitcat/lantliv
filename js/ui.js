@@ -35,6 +35,7 @@ class UI {
       const code = $('codeInput').value.trim().toUpperCase();
       if (code.length === 4) handlers.onJoin(this._name(), code);
     });
+    $('btnEditor').addEventListener('click', () => { location.href = 'editor.html'; });
     // action button (touch)
     $('actionBtn').addEventListener('click', () => handlers.onAction());
     this.setTool(1);

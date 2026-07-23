@@ -20,32 +20,71 @@ function mulberry32(a) {
 }
 
 // Decoration stamps: whole pre-extracted image (never clipped) + collision footprint (bw tiles)
-const DECOR = {
-  tree:    { img: 'd_tree',    bw: 2, solid: true },
-  pine:    { img: 'd_pine',    bw: 1, solid: true },
-  treebig: { img: 'd_treebig', bw: 3, solid: true },
-  bush:    { img: 'd_bush',    bw: 1, solid: false },
-  boulder: { img: 'd_boulder', bw: 2, solid: true },
-  rock:    { img: 'd_rock',    bw: 1, solid: false },
-  stump:   { img: 'd_stump',   bw: 1, solid: true },
-  log:     { img: 'd_log',     bw: 1, solid: false },
-  well:    { img: 'd_well',    bw: 1, solid: true },
-  lamp:    { img: 'd_lamp',    bw: 1, solid: true },
-  fence:   { img: 'd_fence',   bw: 3, solid: true },
-  pond:    { img: 'd_pond',    bw: 2, solid: true },
-  house:   { img: 'house_built', bw: 5, solid: true },
+// label/cat drive the map-editor palette.
+export const DECOR = {
+  tree:     { img: 'd_tree',     bw: 2, solid: true,  label: 'Träd',        cat: 'natur' },
+  pine:     { img: 'd_pine',     bw: 1, solid: true,  label: 'Gran',        cat: 'natur' },
+  treebig:  { img: 'd_treebig',  bw: 3, solid: true,  label: 'Stort träd',  cat: 'natur' },
+  deadtree: { img: 'd_deadtree', bw: 1, solid: true,  label: 'Dött träd',   cat: 'natur' },
+  bush:     { img: 'd_bush',     bw: 1, solid: false, label: 'Buske',       cat: 'natur' },
+  boulder:  { img: 'd_boulder',  bw: 2, solid: true,  label: 'Stenblock',   cat: 'natur' },
+  rock:     { img: 'd_rock',     bw: 1, solid: false, label: 'Sten',        cat: 'natur' },
+  stump:    { img: 'd_stump',    bw: 1, solid: true,  label: 'Stubbe',      cat: 'natur' },
+  log:      { img: 'd_log',      bw: 1, solid: false, label: 'Stock',       cat: 'natur' },
+  mushroom: { img: 'd_mushroom', bw: 1, solid: false, label: 'Svamp',       cat: 'natur' },
+  pond:     { img: 'd_pond',     bw: 2, solid: true,  label: 'Damm',        cat: 'natur' },
+  house:    { img: 'house_built',bw: 5, solid: true,  label: 'Hus',         cat: 'bygg'  },
+  well:     { img: 'd_well',     bw: 1, solid: true,  label: 'Brunn',       cat: 'bygg'  },
+  lamp:     { img: 'd_lamp',     bw: 1, solid: true,  label: 'Lykta',       cat: 'bygg'  },
+  fence:    { img: 'd_fence',    bw: 3, solid: true,  label: 'Staket',      cat: 'bygg'  },
+  stall:    { img: 'd_stall',    bw: 3, solid: true,  label: 'Marknadsstånd',cat: 'bygg' },
+  bench:    { img: 'd_bench',    bw: 2, solid: true,  label: 'Bänk',        cat: 'bygg'  },
+  crate:    { img: 'd_crate',    bw: 1, solid: true,  label: 'Låda',        cat: 'bygg'  },
+  barrel:   { img: 'd_barrel',   bw: 1, solid: true,  label: 'Tunna',       cat: 'bygg'  },
+  chest:    { img: 'd_chest',    bw: 1, solid: true,  label: 'Kista',       cat: 'bygg'  },
+  campfire: { img: 'd_campfire', bw: 1, solid: true,  label: 'Lägereld',    cat: 'bygg'  },
 };
 
 export class World {
-  constructor() {
-    this.w = MAP_W; this.h = MAP_H;
+  constructor(mapData) {
     this.ground = [];      // [y][x] = 0 grass, 1 dirt, 2 water
     this.solid = [];       // [y][x] bool
     this.decor = [];       // { type, tx, ty }  (ty = base/bottom tile row)
+    this.animalSpawns = []; // [{ kind, tx, ty }] (custom maps)
+    this.pasture = null;
+    if (mapData) { this._loadMap(mapData); return; }
+    this.w = MAP_W; this.h = MAP_H;
     this.pasture = { x: 4, y: MAP_H - 9, w: 9, h: 6 }; // fenced animal area (tiles)
     // spawn on grass just off the central path (not on dirt), near the homestead
     this.spawn = { x: (Math.floor(MAP_W / 2) - 4) * TILE + 8, y: (Math.floor(MAP_H / 2) - 3) * TILE + 8 };
     this._generate();
+  }
+
+  // place a decoration + mark its footprint solid (shared by generate/load/editor)
+  place(type, tx, ty) {
+    const d = DECOR[type];
+    if (!d) return;
+    this.decor.push({ type, tx, ty });
+    if (d.solid) for (let i = 0; i < d.bw; i++) {
+      const gx = tx + i, gy = ty;
+      if (this.inBounds(gx, gy)) this.solid[gy][gx] = true;
+    }
+  }
+
+  // build the world from a saved map (see editor format)
+  _loadMap(m) {
+    this.w = m.w; this.h = m.h;
+    for (let y = 0; y < this.h; y++) {
+      this.ground[y] = []; this.solid[y] = [];
+      for (let x = 0; x < this.w; x++) {
+        this.ground[y][x] = (m.ground && m.ground[y] && m.ground[y][x]) || 0;
+        this.solid[y][x] = false;
+      }
+    }
+    for (const o of (m.decor || [])) this.place(o.type, o.tx, o.ty);
+    this.animalSpawns = (m.animals || []).slice();
+    const sp = m.spawn || { tx: Math.floor(this.w / 2), ty: Math.floor(this.h / 2) };
+    this.spawn = { x: sp.tx * TILE + 8, y: sp.ty * TILE + 8 };
   }
 
   _generate() {
@@ -65,14 +104,7 @@ export class World {
     for (let y = this.plot.y; y < this.plot.y + this.plot.h; y++)
       for (let x = this.plot.x; x < this.plot.x + this.plot.w; x++) this.ground[y][x] = 1;
 
-    const place = (type, tx, ty) => {
-      const d = DECOR[type];
-      this.decor.push({ type, tx, ty });
-      if (d.solid) for (let i = 0; i < d.bw; i++) {
-        const gx = tx + i, gy = ty;
-        if (gx >= 0 && gx < this.w && gy >= 0 && gy < this.h) this.solid[gy][gx] = true;
-      }
-    };
+    const place = (type, tx, ty) => this.place(type, tx, ty);
 
     // Tree border around the whole map (leaves a walkable interior)
     for (let x = 1; x < this.w - 2; x += 2) {

@@ -77,6 +77,12 @@ export class Herd {
     for (let i = 0; i < 2; i++) this.animals.push(new Animal('cow', rnd(x0, x1), rnd(y0, y1)));
   }
 
+  // spawn from an explicit list of tile positions (custom maps); wander near their start
+  spawnAt(list, worldW, worldH) {
+    this.bounds = { x0: TILE, y0: TILE, x1: (worldW - 1) * TILE, y1: (worldH - 1) * TILE };
+    for (const a of list) this.animals.push(new Animal(a.kind, a.tx * TILE + 8, a.ty * TILE + 8));
+  }
+
   updateHost(dt) { for (const a of this.animals) a.updateHost(dt, this.bounds); }
   updateRemote(dt) { for (const a of this.animals) a.updateRemote(dt); }
   collectSprites(list) { for (const a of this.animals) list.push(a); }

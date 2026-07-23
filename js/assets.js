@@ -32,6 +32,14 @@ const FILES = {
   d_lamp:        'assets/decor/lamp.png',
   d_fence:       'assets/decor/fence.png',
   d_pond:        'assets/decor/pond.png',
+  d_stall:       'assets/decor/stall.png',
+  d_chest:       'assets/decor/chest.png',
+  d_mushroom:    'assets/decor/mushroom.png',
+  d_deadtree:    'assets/decor/deadtree.png',
+  d_bench:       'assets/decor/bench.png',
+  d_barrel:      'assets/decor/barrel.png',
+  d_crate:       'assets/decor/crate.png',
+  d_campfire:    'assets/decor/campfire.png',
 };
 
 export const A = {}; // name -> HTMLImageElement

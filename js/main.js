@@ -8,6 +8,7 @@ import { Player } from './player.js';
 import { Herd } from './animals.js';
 import { Net } from './net.js';
 import { ui } from './ui.js';
+import { getActiveMap, clearActiveMap } from './maps.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('game');
@@ -195,7 +196,9 @@ net.on({
       else if (t === 'xf') { const p = ensurePlayer(fromId, d.n); p.applySnapshot(d); }
       else if (t === 'act') hostApply({ kind: d.kind, seed: d.seed }, d.tx, d.ty);
     } else {
-      if (t === 'state') {
+      if (t === 'map') {
+        rebuildWorld(d);
+      } else if (t === 'state') {
         farm.apply(d.f); herd.apply(d.h);
         game.coins = d.c; game.day = d.d; game.dayTime = d.t;
         ui.setCoins(d.c); ui.setDay(d.d);
@@ -205,7 +208,7 @@ net.on({
       } else if (t === 'fx') ui.addFloat(d.wx, d.wy, d.text, d.color);
     }
   },
-  peerOpen: (id) => { ensurePlayer(id); net.sendTo(id, 'state', stateMsg()); },
+  peerOpen: (id) => { ensurePlayer(id); net.sendTo(id, 'map', game.mapData || null); net.sendTo(id, 'state', stateMsg()); },
   peerLeave: (id) => { others.delete(id); ui.toast('En bonde lämnade gården'); },
   hostLost: () => { ui.toast('Tappade kontakten med värden'); backToMenu(); },
   netError: (e) => ui.setMenuStatus('Nätverksfel: ' + e),
@@ -216,19 +219,25 @@ function stateMsg() {
 }
 
 // ---------- game start / menu ----------
-function newGame(isHost) {
+function newGame(isHost, mapData) {
   game.isHost = isHost;
-  world = new World();
+  game.mapData = mapData || null;
+  world = new World(game.mapData);
   farm = new Farm(world);
   herd = new Herd();
   me = new Player({ isLocal: true, name: game.myName, x: world.spawn.x, y: world.spawn.y });
   me.tool = ui.currentTool();
   others.clear();
   game.coins = 0; game.day = 1; game.dayTime = DAY_LENGTH * 0.25;
-  if (isHost) herd.spawn(world.pasture);
+  if (isHost) spawnHerd();
   ui.setCoins(0); ui.setDay(1);
   ui.showMenu(false);
   game.running = true;
+}
+
+function spawnHerd() {
+  if (world.animalSpawns && world.animalSpawns.length) herd.spawnAt(world.animalSpawns, world.w, world.h);
+  else if (world.pasture) herd.spawn(world.pasture);
 }
 
 function backToMenu() {
@@ -241,13 +250,13 @@ function backToMenu() {
   ui.setMenuStatus('');
 }
 
-function startSolo(name) { game.myName = name; ui.setRoom(null); newGame(true); ui.toast('Välkommen till din gård, ' + name + '!'); }
+function startSolo(name) { game.myName = name; ui.setRoom(null); newGame(true, getActiveMap()); ui.toast('Välkommen till din gård, ' + name + '!'); }
 
 function startHost(name) {
   game.myName = name;
   ui.setMenuStatus('Skapar rum…');
   net.host((code) => {
-    newGame(true);
+    newGame(true, getActiveMap());
     game.roomCode = code;
     ui.setRoom(code, 1);
     ui.toast('Rumskod: ' + code + ' — dela med familjen!');
@@ -258,9 +267,18 @@ function startJoin(name, code) {
   game.myName = name;
   ui.setMenuStatus('Ansluter till ' + code + '…');
   net.join(code,
-    () => { newGame(false); game.roomCode = code; ui.setRoom(code, 1); net.send('hello', { name }); ui.toast('Ansluten till ' + code + '!'); },
+    () => { newGame(false, null); game.roomCode = code; ui.setRoom(code, 1); net.send('hello', { name }); ui.toast('Ansluten till ' + code + '!'); },
     (reason) => ui.setMenuStatus('Kunde inte ansluta (' + reason + '). Kolla koden och försök igen.')
   );
+}
+
+// client: rebuild the world when the host sends its map (null = procedural default)
+function rebuildWorld(mapData) {
+  game.mapData = mapData || null;
+  world = new World(game.mapData);
+  farm = new Farm(world);
+  me.x = Math.min(Math.max(me.x, TILE), (world.w - 1) * TILE);
+  me.y = Math.min(Math.max(me.y, TILE * 2), (world.h - 1) * TILE);
 }
 
 // ---------- boot ----------
@@ -284,6 +302,13 @@ async function boot() {
   try { await loadAssets(); } catch (e) { ui.setMenuStatus('Fel: ' + e.message); return; }
   ui.setMenuStatus('');
   $('menuButtons').classList.remove('hidden');
+  // show which map will load
+  const md = getActiveMap();
+  const info = $('mapInfo');
+  if (md && info) {
+    info.innerHTML = '🗺️ Spelar din egna karta. <a href="#" id="useDefault" style="color:#ffe08a">Spela standardkarta istället</a>';
+    $('useDefault')?.addEventListener('click', (e) => { e.preventDefault(); clearActiveMap(); location.reload(); });
+  }
   requestAnimationFrame(frame);
 }
 boot();

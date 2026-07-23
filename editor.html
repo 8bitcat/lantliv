@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>Lantliv — Kartbyggare</title>
+<style>
+  :root { --panel:#2b241d; --panel2:#3a3025; --gold:#ffe08a; --line:#5a4a37; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1c2a16;
+    font-family: 'Trebuchet MS', system-ui, sans-serif; color: #fff; user-select: none; touch-action: none; }
+  #ed { position: absolute; inset: 0; image-rendering: pixelated; display: block; cursor: crosshair; }
+
+  #toolbar { position: fixed; top: 0; left: 0; right: 0; height: 52px; z-index: 10; display: flex;
+    align-items: center; gap: 8px; padding: 0 10px; background: rgba(30,24,18,.92);
+    border-bottom: 2px solid var(--line); overflow-x: auto; }
+  #toolbar .t { font-weight: 800; font-size: 17px; color: var(--gold); margin-right: 4px; white-space: nowrap; }
+  #toolbar input[type=text] { width: 130px; }
+  input { font-size: 14px; padding: 7px 9px; border-radius: 8px; border: 2px solid var(--line);
+    background: #1f1912; color: #fff; }
+  input:focus { outline: none; border-color: var(--gold); }
+  button { font-size: 14px; font-weight: 700; padding: 8px 11px; border-radius: 8px; border: none;
+    cursor: pointer; background: #6aa84f; color: #12280c; white-space: nowrap; }
+  button:active { transform: translateY(1px); }
+  button.alt { background: #c9873f; color: #2a1808; }
+  button.ghost { background: #47413a; color: #fff; }
+  .sizebox { display: flex; align-items: center; gap: 3px; font-size: 13px; opacity: .85; }
+  .sizebox input { width: 46px; text-align: center; }
+
+  #palette { position: fixed; top: 52px; left: 0; bottom: 0; width: 138px; z-index: 9; overflow-y: auto;
+    background: rgba(30,24,18,.9); border-right: 2px solid var(--line); padding: 8px 6px; }
+  .secTitle { font-size: 12px; opacity: .6; margin: 10px 4px 4px; text-transform: uppercase; letter-spacing: 1px; }
+  .items { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .pi { background: var(--panel); border: 2px solid transparent; border-radius: 8px; padding: 3px;
+    display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+  .pi canvas, .pi .emoji { width: 40px; height: 40px; display: flex; align-items: center;
+    justify-content: center; font-size: 26px; image-rendering: pixelated; }
+  .pi .lbl { font-size: 9px; margin-top: 1px; text-align: center; line-height: 1.1; opacity: .9; }
+  .pi.active { border-color: var(--gold); background: var(--panel2); }
+
+  #hint { position: fixed; bottom: 10px; left: 148px; z-index: 9; background: rgba(20,16,12,.8);
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font-size: 12.5px; max-width: 60vw; }
+  #zoombar { position: fixed; bottom: 10px; right: 12px; z-index: 9; display: flex; gap: 6px; }
+  #zoombar button { width: 42px; height: 42px; font-size: 20px; border-radius: 50%; }
+  #toast { position: fixed; top: 62px; left: 50%; transform: translateX(-50%); z-index: 20;
+    background: rgba(20,16,12,.92); border: 2px solid var(--line); border-radius: 10px;
+    padding: 9px 16px; font-weight: 600; font-size: 14px; display: none; }
+</style>
+</head>
+<body>
+  <canvas id="ed"></canvas>
+
+  <div id="toolbar">
+    <span class="t">🛠️ Kartbyggare</span>
+    <input type="text" id="mapName" maxlength="20" placeholder="Kartans namn" />
+    <button id="savePlay">💾 Spara &amp; spela</button>
+    <button id="saveOnly" class="ghost">Spara</button>
+    <button id="download" class="ghost">📥 Ladda ner</button>
+    <button id="openBtn" class="ghost">📂 Öppna</button>
+    <span class="sizebox">Storlek
+      <input type="number" id="mapW" min="16" max="100" /> ×
+      <input type="number" id="mapH" min="16" max="100" />
+      <button id="resize" class="ghost">OK</button>
+    </span>
+    <button id="clearAll" class="alt">🗑️ Töm</button>
+    <button id="back" class="ghost">◀ Meny</button>
+    <input type="file" id="fileIn" accept="application/json,.json" hidden />
+  </div>
+
+  <div id="palette"></div>
+  <div id="hint">Klicka/dra för att måla. Piltangenter panorerar. Högerklick raderar.</div>
+  <div id="zoombar">
+    <button id="zoomOut">−</button><button id="zoomIn">+</button>
+  </div>
+  <div id="toast"></div>
+
+  <script type="module" src="js/editor.js"></script>
+</body>
+</html>
