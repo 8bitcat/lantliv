@@ -51,16 +51,16 @@ class Animal {
 
   draw(ctx, cam) {
     if (A.shadow) {
-      const sw = (this.kind === 'cow' ? 24 : 16) * ZOOM;
-      const sx = Math.round((this.x - sw / ZOOM / 2 - cam.x) * ZOOM);
-      const sy = Math.round((this.y - 8 - cam.y) * ZOOM);
+      const sw = (this.kind === 'cow' ? 24 : 16);
+      const sx = Math.round((this.x - sw / 2 - cam.x) * ZOOM);
+      const sy = Math.round((this.y - 4 - cam.y) * ZOOM);
       ctx.globalAlpha = 0.45;
-      ctx.drawImage(A.shadow, 0, 0, 16, 16, sx, sy, sw, 9 * ZOOM);
+      ctx.drawImage(A.shadow, 0, 0, 16, 16, sx, sy, sw * ZOOM, 7 * ZOOM);
       ctx.globalAlpha = 1;
     }
     const row = DIR_ROW[this.dir] ?? 1;
     const dx = Math.round((this.x - CHAR / 2 - cam.x) * ZOOM);
-    const dy = Math.round((this.y - CHAR + 4 - cam.y) * ZOOM);
+    const dy = Math.round((this.y - 32 - cam.y) * ZOOM); // feet at frame row 32 -> this.y
     drawChar(ctx, this.kind, row, this.frame, dx, dy, CHAR * ZOOM);
   }
 }

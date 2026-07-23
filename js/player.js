@@ -105,20 +105,19 @@ export class Player {
     const anim = CHAR_ANIM[this.act] || CHAR_ANIM.idle;
     const frame = Math.min(this.frame, anim.frames - 1);
     const row = DIR_ROW[this.dir] ?? 1;
-    // shadow
+    // shadow — ellipse centred under the feet (feet sit at this.y)
     if (A.shadow) {
-      const sw = 18 * ZOOM;
       const sx = Math.round((this.x - 9 - cam.x) * ZOOM);
-      const sy = Math.round((this.y - 9 - cam.y) * ZOOM);
+      const sy = Math.round((this.y - 4 - cam.y) * ZOOM);
       ctx.globalAlpha = 0.5;
-      ctx.drawImage(A.shadow, 0, 0, 16, 16, sx, sy, sw, 10 * ZOOM);
+      ctx.drawImage(A.shadow, 0, 0, 16, 16, sx, sy, 18 * ZOOM, 8 * ZOOM);
       ctx.globalAlpha = 1;
     }
-    // character (feet anchored at x,y)
+    // character — feet (sprite frame row 32) anchored at this.y
     const dx = Math.round((this.x - CHAR / 2 - cam.x) * ZOOM);
-    const dy = Math.round((this.y - CHAR + 4 - cam.y) * ZOOM);
+    const dy = Math.round((this.y - 32 - cam.y) * ZOOM);
     drawChar(ctx, anim.sheet, row, frame, dx, dy, CHAR * ZOOM);
-    // name label
+    // name label above the head
     if (this.name) {
       ctx.font = `${Math.round(8 * ZOOM)}px monospace`;
       ctx.textAlign = 'center';
@@ -126,7 +125,7 @@ export class Player {
       ctx.strokeStyle = 'rgba(0,0,0,0.6)';
       ctx.fillStyle = this.isLocal ? '#ffe08a' : '#cdeffd';
       const lx = Math.round((this.x - cam.x) * ZOOM);
-      const ly = Math.round((this.y - CHAR + 2 - cam.y) * ZOOM);
+      const ly = Math.round((this.y - 22 - cam.y) * ZOOM);
       ctx.strokeText(this.name, lx, ly);
       ctx.fillText(this.name, lx, ly);
       ctx.textAlign = 'left';

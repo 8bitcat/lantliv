@@ -36,8 +36,15 @@ export const STAR_ROWS = { silver: 14, gold: 15, purple: 16 };
 // grass.png solid fill tiles (col,row) @16px — measured, variance 0
 export const T_GRASS = { col: 10, row: 3 };                 // plain grass base
 export const T_GRASS_DETAIL = [{ col: 6, row: 2 }, { col: 6, row: 7 }]; // occasional tufts
-export const T_DIRT  = { col: 16, row: 2 };
+export const T_DIRT  = { col: 16, row: 2 };                 // plain dirt center
 export const T_WATER = { col: 13, row: 1 };
+
+// Dirt-path autotile (grass border wraps the dirt). 3×3 blob from grass.png.
+export const DIRT_AUTOTILE = {
+  tl: { col: 15, row: 1 }, t: { col: 16, row: 1 }, tr: { col: 17, row: 1 },
+  l:  { col: 15, row: 2 }, c: { col: 16, row: 2 }, r:  { col: 17, row: 2 },
+  bl: { col: 15, row: 3 }, b: { col: 16, row: 3 }, br: { col: 17, row: 3 },
+};
 
 // Quality roll: checked in order, `chance` is the CUMULATIVE upper threshold.
 export const QUALITY = [

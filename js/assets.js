@@ -19,6 +19,19 @@ const FILES = {
   campfire:      'assets/obj/campfire.png',
   shadow:        'assets/obj/shadow.png',
   house_built:   'assets/obj/house_built.png',
+  // decorations — pre-extracted clean sprites (draw whole, never clipped)
+  d_tree:        'assets/decor/tree.png',
+  d_pine:        'assets/decor/pine.png',
+  d_treebig:     'assets/decor/treebig.png',
+  d_bush:        'assets/decor/bush.png',
+  d_boulder:     'assets/decor/boulder.png',
+  d_rock:        'assets/decor/rock.png',
+  d_stump:       'assets/decor/stump.png',
+  d_log:         'assets/decor/log.png',
+  d_well:        'assets/decor/well.png',
+  d_lamp:        'assets/decor/lamp.png',
+  d_fence:       'assets/decor/fence.png',
+  d_pond:        'assets/decor/pond.png',
 };
 
 export const A = {}; // name -> HTMLImageElement

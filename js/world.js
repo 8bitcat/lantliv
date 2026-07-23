@@ -1,6 +1,6 @@
 // LANTLIV — world: ground tiles, decorations, collision, camera-aware rendering
-import { TILE, ZOOM, MAP_W, MAP_H, T_GRASS, T_GRASS_DETAIL, T_DIRT, T_WATER } from './config.js';
-import { A, drawTile, drawRect } from './assets.js';
+import { TILE, ZOOM, MAP_W, MAP_H, T_GRASS, T_GRASS_DETAIL, T_DIRT, T_WATER, DIRT_AUTOTILE } from './config.js';
+import { A, drawTile } from './assets.js';
 
 const WORLD_SEED = 20260723; // fixed -> every player generates an identical map
 
@@ -19,20 +19,21 @@ function mulberry32(a) {
   };
 }
 
-// Decoration stamps: source rect (px) in a tileset + footprint (tiles blocked at base)
+// Decoration stamps: whole pre-extracted image (never clipped) + collision footprint (bw tiles)
 const DECOR = {
-  tree:    { sheet: 'nature', sx: 16,  sy: 16,  sw: 32, sh: 48, bw: 2, solid: true },
-  tree2:   { sheet: 'nature', sx: 96,  sy: 16,  sw: 64, sh: 48, bw: 4, solid: true },
-  bush:    { sheet: 'nature', sx: 176, sy: 16,  sw: 16, sh: 16, bw: 1, solid: false },
-  boulder: { sheet: 'nature', sx: 224, sy: 16,  sw: 32, sh: 32, bw: 2, solid: true },
-  rock:    { sheet: 'nature', sx: 256, sy: 16,  sw: 16, sh: 16, bw: 1, solid: false },
-  stump:   { sheet: 'nature', sx: 16,  sy: 112, sw: 16, sh: 16, bw: 1, solid: true },
-  log:     { sheet: 'nature', sx: 96,  sy: 144, sw: 32, sh: 16, bw: 2, solid: false },
-  well:    { sheet: 'exterior',sx: 160, sy: 16,  sw: 32, sh: 48, bw: 2, solid: true },
-  lamp:    { sheet: 'exterior',sx: 224, sy: 16,  sw: 16, sh: 64, bw: 1, solid: true },
-  fence:   { sheet: 'exterior',sx: 256, sy: 48,  sw: 48, sh: 32, bw: 3, solid: true },
-  pond:    { sheet: 'crops',   sx: 48,  sy: 416, sw: 32, sh: 32, bw: 2, solid: true }, // 2x2 pond
-  house:   { sheet: 'house_built', sx: 0, sy: 0, sw: 80, sh: 65, bw: 5, solid: true },
+  tree:    { img: 'd_tree',    bw: 2, solid: true },
+  pine:    { img: 'd_pine',    bw: 1, solid: true },
+  treebig: { img: 'd_treebig', bw: 3, solid: true },
+  bush:    { img: 'd_bush',    bw: 1, solid: false },
+  boulder: { img: 'd_boulder', bw: 2, solid: true },
+  rock:    { img: 'd_rock',    bw: 1, solid: false },
+  stump:   { img: 'd_stump',   bw: 1, solid: true },
+  log:     { img: 'd_log',     bw: 1, solid: false },
+  well:    { img: 'd_well',    bw: 1, solid: true },
+  lamp:    { img: 'd_lamp',    bw: 1, solid: true },
+  fence:   { img: 'd_fence',   bw: 3, solid: true },
+  pond:    { img: 'd_pond',    bw: 2, solid: true },
+  house:   { img: 'house_built', bw: 5, solid: true },
 };
 
 export class World {
@@ -59,8 +60,10 @@ export class World {
       }
     }
     const cx = Math.floor(this.w / 2), cy = Math.floor(this.h / 2);
-    for (let x = 2; x < this.w - 2; x++) { this.ground[cy][x] = 1; this.ground[cy + 1][x] = 1; }
-    for (let y = 2; y < this.h - 2; y++) { this.ground[y][cx] = 1; this.ground[y][cx + 1] = 1; }
+    // a real bordered dirt farm-plot (autotiled) near the homestead
+    this.plot = { x: cx - 6, y: cy - 1, w: 6, h: 4 };
+    for (let y = this.plot.y; y < this.plot.y + this.plot.h; y++)
+      for (let x = this.plot.x; x < this.plot.x + this.plot.w; x++) this.ground[y][x] = 1;
 
     const place = (type, tx, ty) => {
       const d = DECOR[type];
@@ -81,12 +84,8 @@ export class World {
       if (rng() < 0.85) place('tree', this.w - 2, y);
     }
 
-    // Pond (top-right quadrant)
+    // Pond (top-right quadrant) — self-contained sprite with its own stone border
     place('pond', this.w - 8, 5);
-    // A few water tiles around the pond for a shoreline feel
-    for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) {
-      this.ground[5 + dy][this.w - 8 + dx] = 2;
-    }
 
     // Homestead cluster near center-spawn
     place('house', cx - 8, cy - 6);
@@ -121,9 +120,23 @@ export class World {
     return this.solid[ty][tx];
   }
 
-  // Is this tile farmable (plain grass, nothing on it)?
+  // Is this tile farmable (grass or the dirt plot, nothing on it)?
   isFarmable(tx, ty) {
-    return this.inBounds(tx, ty) && this.ground[ty][tx] === 0 && !this.solid[ty][tx];
+    if (!this.inBounds(tx, ty) || this.solid[ty][tx]) return false;
+    const g = this.ground[ty][tx];
+    return g === 0 || g === 1;
+  }
+
+  // pick the correct autotile dirt tile based on which orthogonal neighbours are non-dirt
+  _dirtTile(tx, ty) {
+    const isDirt = (x, y) => this.inBounds(x, y) && this.ground[y][x] === 1;
+    const gN = !isDirt(tx, ty - 1), gS = !isDirt(tx, ty + 1);
+    const gW = !isDirt(tx - 1, ty), gE = !isDirt(tx + 1, ty);
+    const D = DIRT_AUTOTILE;
+    if (gN && gW) return D.tl; if (gN && gE) return D.tr;
+    if (gS && gW) return D.bl; if (gS && gE) return D.br;
+    if (gN) return D.t; if (gS) return D.b; if (gW) return D.l; if (gE) return D.r;
+    return D.c;
   }
 
   // pixel-rect collision for a moving body (feet box)
@@ -144,7 +157,7 @@ export class World {
     for (let ty = y0; ty <= y1; ty++) {
       for (let tx = x0; tx <= x1; tx++) {
         const g = this.ground[ty][tx];
-        let t = g === 1 ? T_DIRT : g === 2 ? T_WATER : T_GRASS;
+        let t = g === 2 ? T_WATER : g === 1 ? this._dirtTile(tx, ty) : T_GRASS;
         if (g === 0) { const hsh = hash2(tx, ty) % 100; if (hsh < 14) t = T_GRASS_DETAIL[hsh % T_GRASS_DETAIL.length]; }
         const dx = Math.round((tx * TILE - cam.x) * ZOOM);
         const dy = Math.round((ty * TILE - cam.y) * ZOOM);
@@ -153,19 +166,20 @@ export class World {
     }
   }
 
-  // Push decoration sprites into the y-sorted render list
+  // Push decoration sprites into the y-sorted render list (whole images, bottom-centred)
   collectSprites(list, cam) {
     for (const o of this.decor) {
       const d = DECOR[o.type];
-      if (!A[d.sheet]) continue;
+      const img = A[d.img];
+      if (!img) continue;
+      const iw = img.width, ih = img.height;
       const centerX = (o.tx + d.bw / 2) * TILE;
       const bottomY = (o.ty + 1) * TILE;
-      const dw = d.sw * ZOOM, dh = d.sh * ZOOM;
-      const dx = Math.round((centerX - d.sw / 2 - cam.x) * ZOOM);
-      const dy = Math.round((bottomY - d.sh - cam.y) * ZOOM);
+      const dx = Math.round((centerX - iw / 2 - cam.x) * ZOOM);
+      const dy = Math.round((bottomY - ih - cam.y) * ZOOM);
       list.push({
         sortY: bottomY,
-        draw: (ctx) => drawRect(ctx, d.sheet, d.sx, d.sy, d.sw, d.sh, dx, dy, dw, dh),
+        draw: (ctx) => ctx.drawImage(img, dx, dy, iw * ZOOM, ih * ZOOM),
       });
     }
   }
