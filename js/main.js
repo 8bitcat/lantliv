@@ -225,7 +225,7 @@ function newGame(isHost, mapData) {
   world = new World(game.mapData);
   farm = new Farm(world);
   herd = new Herd();
-  me = new Player({ isLocal: true, name: game.myName, x: world.spawn.x, y: world.spawn.y });
+  me = new Player({ isLocal: true, name: game.myName, char: ui.selectedChar, x: world.spawn.x, y: world.spawn.y });
   me.tool = ui.currentTool();
   others.clear();
   game.coins = 0; game.day = 1; game.dayTime = DAY_LENGTH * 0.25;
@@ -301,6 +301,7 @@ async function boot() {
   ui.setMenuStatus('Laddar sprites…');
   try { await loadAssets(); } catch (e) { ui.setMenuStatus('Fel: ' + e.message); return; }
   ui.setMenuStatus('');
+  ui.buildCharPicker();
   $('menuButtons').classList.remove('hidden');
   // show which map will load
   const md = getActiveMap();

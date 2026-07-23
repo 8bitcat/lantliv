@@ -1,5 +1,6 @@
 // LANTLIV — HUD, hotbar, menu, floating text, on-screen touch controls
 import { ZOOM } from './config.js';
+import { A, CHARACTERS } from './assets.js';
 
 export const HOTBAR = [
   { id: 'hoe',                icon: '⛏️', label: 'Hacka' },
@@ -13,7 +14,29 @@ export const HOTBAR = [
 const $ = (id) => document.getElementById(id);
 
 class UI {
-  constructor() { this.floats = []; this.selected = 1; }
+  constructor() { this.floats = []; this.selected = 1; this.selectedChar = 'bunny'; }
+
+  // built after assets load so we can draw each character's sprite thumbnail
+  buildCharPicker() {
+    const wrap = $('charPick');
+    wrap.innerHTML = '';
+    CHARACTERS.forEach((c, i) => {
+      const el = document.createElement('div');
+      el.className = 'charOpt' + (i === 0 ? ' active' : '');
+      const cv = document.createElement('canvas'); cv.width = 40; cv.height = 40;
+      const cx = cv.getContext('2d'); cx.imageSmoothingEnabled = false;
+      const img = A[c.key + '_idle'];
+      if (img) cx.drawImage(img, 0, 48, 48, 48, -4, -6, 52, 52); // down-facing frame 0, cropped a bit
+      const lb = document.createElement('div'); lb.className = 'cl'; lb.textContent = c.label;
+      el.appendChild(cv); el.appendChild(lb);
+      el.addEventListener('click', () => {
+        this.selectedChar = c.key;
+        document.querySelectorAll('#charPick .charOpt').forEach((x) => x.classList.remove('active'));
+        el.classList.add('active');
+      });
+      wrap.appendChild(el);
+    });
+  }
 
   build(handlers) {
     this.handlers = handlers;

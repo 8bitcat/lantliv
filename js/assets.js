@@ -1,66 +1,61 @@
 // LANTLIV — asset loading + draw helpers
 import { TILE } from './config.js';
 
+// Playable characters (paid pack) — each has the same 5 action sheets, 48px, 4 dirs.
+export const CHARACTERS = [
+  { key: 'bunny',  label: 'Kanin' },
+  { key: 'duck',   label: 'Anka' },
+  { key: 'lion',   label: 'Lejon' },
+  { key: 'monkey', label: 'Apa' },
+  { key: 'base',   label: 'Bonde' },
+];
+const CHAR_ACTS = ['idle', 'run', 'hoe', 'watering', 'scythe'];
+
+// Animals — key = file name in assets/animals/
+export const ANIMAL_KEYS = ['chicken', 'chick', 'cow', 'calf', 'goat', 'babygoat', 'sheep', 'lamb', 'mallard', 'duckling'];
+
 const FILES = {
-  bunny_idle:    'assets/char/bunny_idle.png',
-  bunny_run:     'assets/char/bunny_run.png',
-  bunny_hoe:     'assets/char/bunny_hoe.png',
-  bunny_watering:'assets/char/bunny_watering.png',
-  bunny_scythe:  'assets/char/bunny_scythe.png',
-  crops:         'assets/tiles/crops.png',
-  grass:         'assets/tiles/grass.png',
-  nature:        'assets/tiles/nature.png',
-  exterior:      'assets/tiles/exterior.png',
-  house:         'assets/tiles/house.png',
-  floor:         'assets/tiles/floor.png',
-  chicken:       'assets/animals/chicken.png',
-  cow:           'assets/animals/cow.png',
-  chest:         'assets/obj/chest.png',
-  campfire:      'assets/obj/campfire.png',
-  shadow:        'assets/obj/shadow.png',
-  house_built:   'assets/obj/house_built.png',
-  // decorations — pre-extracted clean sprites (draw whole, never clipped)
-  d_tree:        'assets/decor/tree.png',
-  d_pine:        'assets/decor/pine.png',
-  d_treebig:     'assets/decor/treebig.png',
-  d_bush:        'assets/decor/bush.png',
-  d_boulder:     'assets/decor/boulder.png',
-  d_rock:        'assets/decor/rock.png',
-  d_stump:       'assets/decor/stump.png',
-  d_log:         'assets/decor/log.png',
-  d_well:        'assets/decor/well.png',
-  d_lamp:        'assets/decor/lamp.png',
-  d_fence:       'assets/decor/fence.png',
-  d_pond:        'assets/decor/pond.png',
-  d_stall:       'assets/decor/stall.png',
-  d_chest:       'assets/decor/chest.png',
-  d_mushroom:    'assets/decor/mushroom.png',
-  d_deadtree:    'assets/decor/deadtree.png',
-  d_bench:       'assets/decor/bench.png',
-  d_barrel:      'assets/decor/barrel.png',
-  d_crate:       'assets/decor/crate.png',
-  d_campfire:    'assets/decor/campfire.png',
+  crops:    'assets/tiles/crops.png',
+  grass:    'assets/tiles/grass.png',
+  nature:   'assets/tiles/nature.png',
+  exterior: 'assets/tiles/exterior.png',
+  house:    'assets/tiles/house.png',
+  floor:    'assets/tiles/floor.png',
+  chest:    'assets/obj/chest.png',
+  campfire: 'assets/obj/campfire.png',
+  shadow:   'assets/obj/shadow.png',
+  house_built: 'assets/obj/house_built.png',
 };
+// decorations (clean pre-extracted PNGs)
+for (const d of ['tree', 'pine', 'treebig', 'bush', 'boulder', 'rock', 'stump', 'log', 'well', 'lamp',
+  'fence', 'pond', 'stall', 'chest', 'mushroom', 'deadtree', 'bench', 'barrel', 'crate', 'campfire',
+  'fountain']) {
+  FILES['d_' + d] = 'assets/decor/' + d + '.png';
+}
+// character sheets: <char>_<act>
+for (const c of CHARACTERS) for (const a of CHAR_ACTS) FILES[`${c.key}_${a}`] = `assets/char/${c.key}_${a}.png`;
+// animal idle sheets
+for (const k of ANIMAL_KEYS) FILES[k] = `assets/animals/${k}.png`;
 
 export const A = {}; // name -> HTMLImageElement
 
 export function loadAssets() {
   const names = Object.keys(FILES);
-  return Promise.all(names.map((n) => new Promise((res, rej) => {
+  return Promise.all(names.map((n) => new Promise((res) => {
     const img = new Image();
     img.onload = () => { A[n] = img; res(); };
-    img.onerror = () => rej(new Error('kunde inte ladda ' + FILES[n]));
+    img.onerror = () => { console.warn('kunde inte ladda', FILES[n]); res(); }; // tolerate missing optional decor
     img.src = FILES[n];
   })));
 }
 
-// Character animation frame counts (48px frames, 4 direction rows)
+// Character animation defs — sheet = `${charKey}_${suffix}`
 export const CHAR_ANIM = {
-  idle:     { sheet: 'bunny_idle',     frames: 5, fps: 5 },
-  run:      { sheet: 'bunny_run',      frames: 8, fps: 12 },
-  hoe:      { sheet: 'bunny_hoe',      frames: 9, fps: 14 },
-  watering: { sheet: 'bunny_watering', frames: 9, fps: 14 },
-  scythe:   { sheet: 'bunny_scythe',   frames: 9, fps: 14 },
+  idle:     { suffix: 'idle',     frames: 5, fps: 5 },
+  run:      { suffix: 'run',      frames: 8, fps: 12 },
+  hoe:      { suffix: 'hoe',      frames: 9, fps: 14 },
+  watering: { suffix: 'watering', frames: 9, fps: 14 },
+  scythe:   { suffix: 'scythe',   frames: 9, fps: 14 },
 };
 
 // Direction -> sprite-sheet row
@@ -78,11 +73,4 @@ export function drawTile(ctx, sheetName, col, row, dx, dy, dsize) {
   const img = A[sheetName];
   if (!img) return;
   ctx.drawImage(img, col * TILE, row * TILE, TILE, TILE, dx, dy, dsize, dsize);
-}
-
-// Draw an arbitrary sub-rect of a sheet (for multi-tile objects), source in px.
-export function drawRect(ctx, sheetName, sx, sy, sw, sh, dx, dy, dw, dh) {
-  const img = A[sheetName];
-  if (!img) return;
-  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
 }

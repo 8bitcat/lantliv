@@ -3,9 +3,12 @@ LANTLIV — asset credits
 
 All pixel-art sprites and tilesets in this game are from:
 
-    "Little Dreamyland" asset pack
+    "Little Dreamyland" asset pack (Free + Paid)
     by Starmixu & Utaskuas
     https://starmixu.itch.io/little-dreamyland-asset-pack
+
+    Carl owns a license for the Paid Pack. Only the game's own sprites are
+    included; the raw source tilesets are not redistributed.
 
 Used under the Little Dreamyland Free Version Pack license:
   - Free for non-commercial projects (this is a private family game).

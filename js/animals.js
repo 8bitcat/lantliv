@@ -1,14 +1,27 @@
-// LANTLIV — ambient animals (chickens + cows) wandering the pasture
+// LANTLIV — ambient animals (all paid-pack species) wandering the world
 import { TILE, ZOOM, CHAR } from './config.js';
-import { A, DIR_ROW, drawChar } from './assets.js';
+import { A, DIR_ROW, drawChar, ANIMAL_KEYS } from './assets.js';
 
-const KINDS = ['chicken', 'cow'];
+// per-species: display label, idle-sheet frame count, wander speed (px/s)
+export const ANIMAL_DEFS = {
+  chicken:  { label: 'Höna',     frames: 8, speed: 20 },
+  chick:    { label: 'Kyckling', frames: 5, speed: 22 },
+  cow:      { label: 'Ko',       frames: 8, speed: 12 },
+  calf:     { label: 'Kalv',     frames: 8, speed: 15 },
+  goat:     { label: 'Get',      frames: 8, speed: 15 },
+  babygoat: { label: 'Killing',  frames: 8, speed: 18 },
+  sheep:    { label: 'Får',      frames: 8, speed: 13 },
+  lamb:     { label: 'Lamm',     frames: 8, speed: 16 },
+  mallard:  { label: 'Anka',     frames: 8, speed: 18 },
+  duckling: { label: 'Ankunge',  frames: 5, speed: 20 },
+};
+
 const DIRS = ['up', 'down', 'left', 'right'];
-const SPEED = { chicken: 20, cow: 12 };
 
 class Animal {
   constructor(kind, x, y) {
     this.kind = kind;
+    this.def = ANIMAL_DEFS[kind] || ANIMAL_DEFS.chicken;
     this.x = x; this.y = y;
     this.netX = x; this.netY = y;
     this.dir = 'down';
@@ -25,10 +38,10 @@ class Animal {
     }
     if (this.state === 'walk') {
       const off = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[this.dir];
-      const sp = SPEED[this.kind] * dt;
+      const sp = this.def.speed * dt;
       let nx = this.x + off[0] * sp, ny = this.y + off[1] * sp;
-      if (nx < bounds.x0 || nx > bounds.x1) { off[0] *= -1; this.dir = off[0] < 0 ? 'left' : 'right'; nx = this.x; }
-      if (ny < bounds.y0 || ny > bounds.y1) { off[1] *= -1; this.dir = off[1] < 0 ? 'up' : 'down'; ny = this.y; }
+      if (nx < bounds.x0 || nx > bounds.x1) { this.dir = off[0] < 0 ? 'right' : 'left'; nx = this.x; }
+      if (ny < bounds.y0 || ny > bounds.y1) { this.dir = off[1] < 0 ? 'down' : 'up'; ny = this.y; }
       this.x = Math.max(bounds.x0, Math.min(bounds.x1, nx));
       this.y = Math.max(bounds.y0, Math.min(bounds.y1, ny));
     }
@@ -44,14 +57,15 @@ class Animal {
   _animate(dt) {
     this.animTimer += dt;
     const step = 1 / 6;
-    while (this.animTimer >= step) { this.animTimer -= step; this.frame = (this.frame + 1) % 8; }
+    while (this.animTimer >= step) { this.animTimer -= step; this.frame = (this.frame + 1) % this.def.frames; }
   }
 
   get sortY() { return this.y; }
 
   draw(ctx, cam) {
+    const big = ['cow', 'goat', 'sheep', 'calf'].includes(this.kind);
     if (A.shadow) {
-      const sw = (this.kind === 'cow' ? 24 : 16);
+      const sw = big ? 24 : 15;
       const sx = Math.round((this.x - sw / 2 - cam.x) * ZOOM);
       const sy = Math.round((this.y - 4 - cam.y) * ZOOM);
       ctx.globalAlpha = 0.45;
@@ -61,7 +75,7 @@ class Animal {
     const row = DIR_ROW[this.dir] ?? 1;
     const dx = Math.round((this.x - CHAR / 2 - cam.x) * ZOOM);
     const dy = Math.round((this.y - 32 - cam.y) * ZOOM); // feet at frame row 32 -> this.y
-    drawChar(ctx, this.kind, row, this.frame, dx, dy, CHAR * ZOOM);
+    drawChar(ctx, this.kind, row, Math.min(this.frame, this.def.frames - 1), dx, dy, CHAR * ZOOM);
   }
 }
 
@@ -77,10 +91,9 @@ export class Herd {
     for (let i = 0; i < 2; i++) this.animals.push(new Animal('cow', rnd(x0, x1), rnd(y0, y1)));
   }
 
-  // spawn from an explicit list of tile positions (custom maps); wander near their start
   spawnAt(list, worldW, worldH) {
     this.bounds = { x0: TILE, y0: TILE, x1: (worldW - 1) * TILE, y1: (worldH - 1) * TILE };
-    for (const a of list) this.animals.push(new Animal(a.kind, a.tx * TILE + 8, a.ty * TILE + 8));
+    for (const a of list) if (ANIMAL_DEFS[a.kind]) this.animals.push(new Animal(a.kind, a.tx * TILE + 8, a.ty * TILE + 8));
   }
 
   updateHost(dt) { for (const a of this.animals) a.updateHost(dt, this.bounds); }
@@ -88,14 +101,14 @@ export class Herd {
   collectSprites(list) { for (const a of this.animals) list.push(a); }
 
   serialize() {
-    return this.animals.map((a) => [KINDS.indexOf(a.kind), Math.round(a.x), Math.round(a.y), DIRS.indexOf(a.dir), a.frame]);
+    return this.animals.map((a) => [ANIMAL_KEYS.indexOf(a.kind), Math.round(a.x), Math.round(a.y), DIRS.indexOf(a.dir), a.frame]);
   }
   apply(list) {
     if (this.animals.length !== list.length) {
-      this.animals = list.map(([k, x, y]) => new Animal(KINDS[k], x, y));
+      this.animals = list.map(([k, x, y]) => new Animal(ANIMAL_KEYS[k] || 'chicken', x, y));
     }
     list.forEach(([k, x, y, d, f], i) => {
-      const a = this.animals[i];
+      const a = this.animals[i]; if (!a) return;
       a.netX = x; a.netY = y; a.dir = DIRS[d] || 'down'; a.frame = f;
     });
   }

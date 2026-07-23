@@ -2,6 +2,8 @@
 import { TILE, CHAR, T_GRASS, T_WATER, DIRT_AUTOTILE } from './config.js';
 import { A, loadAssets, drawTile, drawChar } from './assets.js';
 import { DECOR } from './world.js';
+import { ANIMAL_DEFS } from './animals.js';
+import { ANIMAL_KEYS } from './assets.js';
 import { setActiveMap, saveMap } from './maps.js';
 
 const $ = (id) => document.getElementById(id);
@@ -9,7 +11,7 @@ const canvas = $('ed');
 const ctx = canvas.getContext('2d');
 
 const GROUND = [{ v: 0, label: 'Gräs' }, { v: 1, label: 'Jord' }, { v: 2, label: 'Vatten' }];
-const ANIMALS = [{ kind: 'chicken', label: 'Höna' }, { kind: 'cow', label: 'Ko' }];
+const ANIMALS = ANIMAL_KEYS.map((k) => ({ kind: k, label: ANIMAL_DEFS[k].label }));
 
 let map;
 let cam = { x: 0, y: 0 };

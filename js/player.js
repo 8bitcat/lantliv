@@ -14,6 +14,7 @@ export class Player {
     this.animTimer = 0;
     this.isLocal = !!opts.isLocal;
     this.name = opts.name || 'Bonde';
+    this.char = opts.char || 'bunny';
     this.tool = 'hoe';
     // action lock (one-shot tool animation)
     this.actionLock = false;
@@ -116,7 +117,7 @@ export class Player {
     // character — feet (sprite frame row 32) anchored at this.y
     const dx = Math.round((this.x - CHAR / 2 - cam.x) * ZOOM);
     const dy = Math.round((this.y - 32 - cam.y) * ZOOM);
-    drawChar(ctx, anim.sheet, row, frame, dx, dy, CHAR * ZOOM);
+    drawChar(ctx, `${this.char}_${anim.suffix}`, row, frame, dx, dy, CHAR * ZOOM);
     // name label above the head
     if (this.name) {
       ctx.font = `${Math.round(8 * ZOOM)}px monospace`;
@@ -134,9 +135,10 @@ export class Player {
 
   // network snapshot (local -> others)
   snapshot() {
-    return { x: Math.round(this.x), y: Math.round(this.y), d: this.dir, a: this.act, f: this.frame, n: this.name };
+    return { x: Math.round(this.x), y: Math.round(this.y), d: this.dir, a: this.act, f: this.frame, n: this.name, c: this.char };
   }
   applySnapshot(s) {
     this.netX = s.x; this.netY = s.y; this.dir = s.d; this.act = s.a; this.frame = s.f; this.name = s.n;
+    if (s.c) this.char = s.c;
   }
 }

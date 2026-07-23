@@ -43,6 +43,7 @@ export const DECOR = {
   barrel:   { img: 'd_barrel',   bw: 1, solid: true,  label: 'Tunna',       cat: 'bygg'  },
   chest:    { img: 'd_chest',    bw: 1, solid: true,  label: 'Kista',       cat: 'bygg'  },
   campfire: { img: 'd_campfire', bw: 1, solid: true,  label: 'Lägereld',    cat: 'bygg'  },
+  fountain: { img: 'd_fountain', bw: 2, solid: true,  label: 'Fontän',      cat: 'bygg'  },
 };
 
 export class World {
