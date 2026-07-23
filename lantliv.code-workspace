@@ -1,0 +1,27 @@
+{
+  "folders": [
+    {
+      "name": "Lantliv",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "window.title": "Lantliv — ${dirty}${activeEditorShort}",
+    "files.exclude": {
+      "**/.git": true,
+      "**/.DS_Store": true,
+      "**/Thumbs.db": true
+    },
+    "search.exclude": {
+      "**/design/lantliv-design.html": true
+    },
+    "files.associations": {
+      "*.code-workspace": "jsonc"
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "anthropic.claude-code"
+    ]
+  }
+}
