@@ -30,14 +30,25 @@ const game = {
 
 // ---------- setup ----------
 function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  if (w <= 0 || h <= 0) return; // minimised/occluded: keep the last backing store, don't blank it
   dpr = window.devicePixelRatio || 1;
-  vw = window.innerWidth; vh = window.innerHeight;
+  vw = w; vh = h;
   canvas.width = Math.floor(vw * dpr); canvas.height = Math.floor(vh * dpr);
   canvas.style.width = vw + 'px'; canvas.style.height = vh + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.imageSmoothingEnabled = false;
 }
 window.addEventListener('resize', resize);
+
+// When the tab/window loses then regains focus, the browser compositor can leave a stale/blank
+// (grey) canvas until the next paint. Force an immediate re-render on return so colours come back.
+function forceRepaint() {
+  if (!document.hidden && game.running && world) { resize(); render(0); }
+}
+document.addEventListener('visibilitychange', forceRepaint);
+window.addEventListener('focus', forceRepaint);
+window.addEventListener('pageshow', forceRepaint);
 
 // ---------- tool intent ----------
 function getIntent(tool, tx, ty) {

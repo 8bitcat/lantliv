@@ -105,7 +105,7 @@ export class Player {
   draw(ctx, cam) {
     const anim = CHAR_ANIM[this.act] || CHAR_ANIM.idle;
     const frame = Math.min(this.frame, anim.frames - 1);
-    const row = DIR_ROW[this.dir] ?? 1;
+    const row = (anim.rows || DIR_ROW)[this.dir] ?? 1;
     // shadow — ellipse centred under the feet (feet sit at this.y)
     if (A.shadow) {
       const sx = Math.round((this.x - 9 - cam.x) * ZOOM);

@@ -3,7 +3,7 @@ import {
   TILE, ZOOM, STAGE_TIME, WET_TIME, WITHER_TIME,
   CROPS, CROP_KEYS, GROW_ROWS, WITHER_ROWS,
 } from './config.js';
-import { drawTile } from './assets.js';
+import { A, drawTile } from './assets.js';
 
 const key = (tx, ty) => tx + ',' + ty;
 
@@ -77,17 +77,24 @@ export class Farm {
   // grass fringe autotile); here we only add watered darkening + the crop ---
   draw(ctx, cam, vw, vh) {
     const s = TILE * ZOOM + 1;
+    const P = TILE * ZOOM;
     for (const [k, t] of this.tiles) {
       const [tx, ty] = k.split(',').map(Number);
       const dx = Math.round((tx * TILE - cam.x) * ZOOM);
       const dy = Math.round((ty * TILE - cam.y) * ZOOM);
-      if (dx < -s || dy < -s || dx > vw || dy > vh) continue;
+      if (dx < -s || dy < -2 * s || dx > vw || dy > vh) continue; // crops reach one tile above their soil
       if (t.wet) { ctx.fillStyle = 'rgba(45,28,12,0.30)'; ctx.fillRect(dx, dy, s, s); } // watered = darker
       const c = t.crop;
       if (c) {
         const col = CROPS[c.type].col;
         const row = c.withered ? (WITHER_ROWS[c.stage] ?? GROW_ROWS[c.stage - 1]) : GROW_ROWS[c.stage - 1];
-        drawTile(ctx, 'crops', col, row, dx, dy, TILE * ZOOM + 1);
+        // Crops are 2 tiles tall from stage 2 on — draw the tile-row above too so the plant top
+        // isn't clipped. Stage 1 stays single-tile (the row above it holds the seed-packet art).
+        if (c.stage >= 2 && A.crops) {
+          ctx.drawImage(A.crops, col * TILE, (row - 1) * TILE, TILE, TILE * 2, dx, dy - P, s, P * 2 + 1);
+        } else {
+          drawTile(ctx, 'crops', col, row, dx, dy, s);
+        }
       }
     }
   }

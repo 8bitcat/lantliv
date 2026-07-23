@@ -1,6 +1,6 @@
 // LANTLIV — world: ground tiles, decorations, collision, camera-aware rendering
 import { TILE, ZOOM, MAP_W, MAP_H, T_GRASS, T_GRASS_DETAIL, T_DIRT, T_WATER } from './config.js';
-import { A, drawTile } from './assets.js';
+import { A, drawTile, GRASS_CORNERS } from './assets.js';
 
 const WORLD_SEED = 20260723; // fixed -> every player generates an identical map
 
@@ -197,8 +197,21 @@ export class World {
             const D = (x, y) => this.isDirtAt(x, y);
             const N = D(tx, ty - 1), So = D(tx, ty + 1), We = D(tx - 1, ty), Ea = D(tx + 1, ty);
             const ov = (f) => ctx.drawImage(edge, f * 16, 0, 16, 16, dx, dy, s, s);
-            if (!N) ov(0); if (!So) ov(1); if (!We) ov(2); if (!Ea) ov(3);   // edges T B L R
-            if (N && We && !D(tx - 1, ty - 1)) ov(4);                        // inner corners
+            const gc = (im) => im && ctx.drawImage(im, 0, 0, 16, 16, dx, dy, s, s);
+            // convex (outer) corners — a single artist-drawn wrap tile carries both fringes and
+            // wraps the corner cleanly (no boxy doubled outline where two straight edges collide).
+            const hasC = !!GRASS_CORNERS.tl;
+            const TL = !N && !We, TR = !N && !Ea, BL = !So && !We, BR = !So && !Ea;
+            // straight edges — skip the stretch a corner tile already covers (only when we have corners)
+            if (!N && !(hasC && (TL || TR))) ov(0);
+            if (!So && !(hasC && (BL || BR))) ov(1);
+            if (!We && !(hasC && (TL || BL))) ov(2);
+            if (!Ea && !(hasC && (TR || BR))) ov(3);
+            if (TL) gc(GRASS_CORNERS.tl);
+            if (TR) gc(GRASS_CORNERS.tr);
+            if (BL) gc(GRASS_CORNERS.bl);
+            if (BR) gc(GRASS_CORNERS.br);
+            if (N && We && !D(tx - 1, ty - 1)) ov(4);                        // inner (concave) corners
             if (N && Ea && !D(tx + 1, ty - 1)) ov(5);
             if (So && We && !D(tx - 1, ty + 1)) ov(6);
             if (So && Ea && !D(tx + 1, ty + 1)) ov(7);
