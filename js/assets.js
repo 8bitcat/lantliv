@@ -29,7 +29,7 @@ const FILES = {
 // decorations (clean pre-extracted PNGs)
 for (const d of ['tree', 'pine', 'treebig', 'bush', 'boulder', 'rock', 'stump', 'log', 'well', 'lamp',
   'fence', 'pond', 'stall', 'chest', 'mushroom', 'deadtree', 'bench', 'barrel', 'crate', 'campfire',
-  'fountain']) {
+  'fountain', 'hay', 'trough', 'box']) {
   FILES['d_' + d] = 'assets/decor/' + d + '.png';
 }
 // character sheets: <char>_<act>

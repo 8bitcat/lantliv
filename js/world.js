@@ -44,6 +44,9 @@ export const DECOR = {
   chest:    { img: 'd_chest',    bw: 1, solid: true,  label: 'Kista',       cat: 'bygg'  },
   campfire: { img: 'd_campfire', bw: 1, solid: true,  label: 'Lägereld',    cat: 'bygg'  },
   fountain: { img: 'd_fountain', bw: 2, solid: true,  label: 'Fontän',      cat: 'bygg'  },
+  hay:      { img: 'd_hay',      bw: 3, solid: true,  label: 'Höbal',       cat: 'bygg'  },
+  trough:   { img: 'd_trough',   bw: 2, solid: false, label: 'Tråg',        cat: 'bygg'  },
+  box:      { img: 'd_box',      bw: 2, solid: true,  label: 'Trälåda',     cat: 'bygg'  },
 };
 
 export class World {
