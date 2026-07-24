@@ -39,13 +39,16 @@ som familjen kan joina över nätet. Byggt på **Little Dreamyland**-sprite-pake
 ### Filkarta
 | Fil | Ansvar |
 |---|---|
-| [js/config.js](js/config.js) | CROPS (26 st), tile-konstanter, timers |
-| [js/economy.js](js/economy.js) | `Inventory` — mynt/frön/skörd, köp/sälj, serialisering |
-| [js/farm.js](js/farm.js) | uppodling, grödor, växtlogik, skörd |
-| [js/world.js](js/world.js) | mark, dekor, kollision, `drawGround` (autotile) |
-| [js/main.js](js/main.js) | host-auth loop, spara/ladda, MP-state |
-| [js/ui.js](js/ui.js) | HUD, hotbar, väska/butik-paneler |
-| [js/assets.js](js/assets.js) | asset-laddning + rit-helpers |
+| [js/config.js](js/config.js) | CROPS (26), LIVESTOCK/PRODUCTS/ANIMAL_SHOP (Fas B), GOODS/WORKSHOPS (Fas C), timers |
+| [js/economy.js](js/economy.js) | `Inventory` — mynt/frön/skörd/produkter/goods/foder, köp/sälj, serialisering |
+| [js/farm.js](js/farm.js) | uppodling, grödor, växtlogik, skörd (2-tall crop-render) |
+| [js/animals.js](js/animals.js) | `Herd` + `Animal` — vandring, mata/producera/uppföda/avla, produkt-bubblor |
+| [js/workshops.js](js/workshops.js) | `Workshops` — förädling (deposit→process→collect), stall+skylt-render |
+| [js/world.js](js/world.js) | mark, dekor, kollision, `drawGround` (autotile + rundade ytterhörn), workshopSpots |
+| [js/player.js](js/player.js) | spelare; per-action riktningsrader (ACTION_DIR_ROW) |
+| [js/main.js](js/main.js) | host-auth loop, interaktion (verktyg/djur/workshop), spara/ladda, MP-state |
+| [js/ui.js](js/ui.js) | HUD, hotbar, väska/butik (frön/djur/foder/sälj allt) |
+| [js/assets.js](js/assets.js) | asset-laddning + rit-helpers, GRASS_CORNERS (ytterhörn-overlays) |
 | [index.html](index.html) | spelet + pixel-startskärm |
 | [editor.html](editor.html) / [js/editor.js](js/editor.js) | kartbyggaren |
 
@@ -56,22 +59,33 @@ som familjen kan joina över nätet. Byggt på **Little Dreamyland**-sprite-pake
 ## Status
 
 - ✅ **Grundspel + MP + kartbyggare + karaktärsval** — live.
-- ✅ **Fas A (ekonomi-grund)** — 26 grödor, väska, köp/sälj-butik, spara/ladda, autosave. Live.
-- ✅ **Autotile-fix** (commit `83846ce`) — förenad jord (världsplättar + uppodlat) med
-  gräskant-overlays + korrekta innerhörn. Löste "L-hål blir fel" + "hackar man i befintlig miljö blir det fel".
-- ✅ **Pixel-startskärm** — panel/menybakgrund från UI-paketet.
+- ✅ **Fas A (ekonomi-grund)** — 26 grödor, väska, köp/sälj-butik, spara/ladda, autosave.
+- ✅ **Autotile** — förenad jord + gräskant-overlays; **rundade ytterhörn** via blob-hörn (`4d376b8`).
+- ✅ **Pixel-startskärm.**
+- ✅ **Buggfix-runda** (`4d376b8`): verktygs-riktningar (hoe/watering/scythe hade ner↔höger omkastade —
+  action-ark använder `[upp,höger,vänster,ner]`), avklippta grödor (2-tall från stadie 2), rundade
+  ytterhörn, gråskärm-skydd (repaint på focus/visibility + ingen 0×0-resize).
+- ✅ **Fas B — djur & uppfödning** (`f964de3`): mata (foder köps / vete odlas) → ägg/mjölk/ull, samla via
+  bubbla, sälj; köp baby-djur + foder i butiken; baby→vuxen (~2 dagar); daglig avel (≥2 vuxna av art);
+  herd sparas + synkas. Starter: 2 höns + 1 ko.
+- ✅ **Fas C — förädling** (`4f8698e`): Bageri 🌾→🍞, Mejeri 🥛→🧀, Väveri 🧶→🧵. Tre stall-byggnader söder
+  om åkern; ställ in (deposit) → progress → hämta färdig vara; goods säljs i butiken. Deterministiska
+  positioner, solida, state sparas + synkas.
 
 ## Nästa steg
 
-**Fas B — djur & uppfödning** (sprites finns: höns/kyckling, ko/kalv, get/killing, får/lamm, and/ankunge):
-1. Köp djur i butiken, placera i hagen.
-2. Mata (hö/foder) + vatten.
-3. Dagliga produkter: ägg, mjölk, ull → till väskan → sälj.
-4. Uppfödning: baby → vuxen över tid.
-5. Djur-cykel: sova/äta (dygnsrytm).
+**Fas D — bybygge / placering** (näst på tur): låt spelaren *placera* byggnader själv (workshops, hagar,
+dekor) mot resurser/mynt, community-paket + milstolpar som drivkraft, delad by-bank i MP. Byggnader =
+färgkodade tak + skyltar (skylt-mönstret finns redan i Fas C).
 
-Därefter Fas C–H enligt GDD (bybygge, hantverksbyggnader som kvarn/bageri/mejeri, smedja + mineraltiers,
-bybor att hyra, äventyr/gruva). Kvarnen använder **vete-skylt**.
+Därefter Fas E–H enligt GDD: smedja + mineraltiers (sten→koppar→…→diamant, tonad hacka per tier),
+bybor att hyra (automation), levande bycentrum med porträtt-dialog, valfri äventyrs-/gruvdel
+(fladdermus + slem, svärds-animationer finns).
+
+### Verifieringsrutin (headless)
+`python -m http.server 8137` → Playwright-script via `D:\Qisy\QISYFrontend\QISYFrontend-1\node_modules\playwright`
+(kräver absolut `require`-sökväg). Testharness importerar spelmodulerna direkt och renderar scenarier
+(pixel-identiskt med spelet); assertions loggas till console, screenshot läses tillbaka. Se commit-historik.
 
 ## Så återupptar vi
 
