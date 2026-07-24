@@ -98,6 +98,22 @@ export const ANIMAL_SHOP = {
   calf:     { name: 'Kalv',     price: 80, emoji: '🐮' },
 };
 
+// ---------- Fas C: workshops & processing ----------
+// Refined goods produced by workshops from raw crops/products; sold like everything else.
+export const GOODS = {
+  bread:  { name: 'Bröd', price: 40, emoji: '🍞' },
+  cheese: { name: 'Ost',  price: 40, emoji: '🧀' },
+  cloth:  { name: 'Tyg',  price: 55, emoji: '🧵' },
+};
+// Processing buildings. `in` names the inventory store ('harvest' crops | 'products' animal
+// products) + key to consume; `out` is the GOODS key produced after WORKSHOP_TIME.
+export const WORKSHOPS = {
+  bakery: { label: 'Bageri', in: { store: 'harvest',  key: 'wheat' }, out: 'bread',  sign: '🍞' },
+  dairy:  { label: 'Mejeri', in: { store: 'products', key: 'milk'  }, out: 'cheese', sign: '🧀' },
+  weaver: { label: 'Väveri', in: { store: 'products', key: 'wool'  }, out: 'cloth',  sign: '🧵' },
+};
+export const WORKSHOP_TIME = 30;     // seconds to process one input into one output
+
 export const FODER_COST = 3;         // coins per feed unit bought in the shop
 export const PRODUCT_TIME = 40;      // seconds a fed adult takes to make its product
 export const GROW_TIME = DAY_LENGTH * 2; // seconds a baby takes to grow up (~2 days)

@@ -1,5 +1,5 @@
 // LANTLIV — HUD, hotbar, bag & shop panels, menu, floating text, touch controls
-import { ZOOM, CROPS, CROP_KEYS, PRODUCTS, ANIMAL_SHOP, FODER_COST } from './config.js';
+import { ZOOM, CROPS, CROP_KEYS, PRODUCTS, GOODS, ANIMAL_SHOP, FODER_COST } from './config.js';
 import { A, CHARACTERS } from './assets.js';
 
 // hotbar: 3 tools + 2 panel buttons
@@ -130,7 +130,8 @@ class UI {
       const tiles = [];
       if (inv.foder > 0) tiles.push({ e: '🌾', c: inv.foder, n: 'Foder' });
       for (const k in PRODUCTS) if (inv.productCount(k) > 0) tiles.push({ e: PRODUCTS[k].emoji, c: inv.productCount(k), n: PRODUCTS[k].name });
-      if (!tiles.length) pg.innerHTML = '<div class="empty">Inga produkter — mata djuren 🐔</div>';
+      for (const k in GOODS) if (inv.goodCount(k) > 0) tiles.push({ e: GOODS[k].emoji, c: inv.goodCount(k), n: GOODS[k].name });
+      if (!tiles.length) pg.innerHTML = '<div class="empty">Inga produkter — mata djuren 🐔 eller förädla 🏭</div>';
       for (const t of tiles) {
         const el = document.createElement('div');
         el.className = 'invtile';
@@ -174,7 +175,8 @@ class UI {
     const sell = $('shopSell'); sell.innerHTML = '';
     const held = CROP_KEYS.filter((k) => inv.harvestCount(k) > 0);
     const prods = Object.keys(PRODUCTS).filter((k) => inv.productCount(k) > 0);
-    if (!held.length && !prods.length) sell.innerHTML = '<div class="empty">Inget att sälja — skörda eller mjölka först!</div>';
+    const goods = Object.keys(GOODS).filter((k) => inv.goodCount(k) > 0);
+    if (!held.length && !prods.length && !goods.length) sell.innerHTML = '<div class="empty">Inget att sälja — skörda, mjölka eller förädla först!</div>';
     for (const k of held) {
       const c = CROPS[k];
       const el = document.createElement('div');
@@ -189,6 +191,14 @@ class UI {
       el.className = 'shoptile sellable';
       el.innerHTML = `<span class="e">${c.emoji}</span><span class="n">${c.name} ×${inv.productCount(k)}</span><span class="p">🪙${c.price}</span>`;
       el.addEventListener('click', () => this.handlers.onSellProduct(k));
+      sell.appendChild(el);
+    }
+    for (const k of goods) {
+      const c = GOODS[k];
+      const el = document.createElement('div');
+      el.className = 'shoptile sellable';
+      el.innerHTML = `<span class="e">${c.emoji}</span><span class="n">${c.name} ×${inv.goodCount(k)}</span><span class="p">🪙${c.price}</span>`;
+      el.addEventListener('click', () => this.handlers.onSellGood(k));
       sell.appendChild(el);
     }
   }

@@ -105,6 +105,8 @@ export class World {
     const cx = Math.floor(this.w / 2), cy = Math.floor(this.h / 2);
     // a real bordered dirt farm-plot (autotiled) near the homestead
     this.plot = { x: cx - 6, y: cy - 1, w: 6, h: 4 };
+    // Fas C workshops — a row of processing buildings just south of the plot (clear grass band)
+    this.workshopSpots = [['bakery', cx - 6, cy + 4], ['dairy', cx - 2, cy + 4], ['weaver', cx + 2, cy + 4]];
     for (let y = this.plot.y; y < this.plot.y + this.plot.h; y++)
       for (let x = this.plot.x; x < this.plot.x + this.plot.w; x++) this.ground[y][x] = 1;
 

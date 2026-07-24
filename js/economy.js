@@ -1,6 +1,6 @@
 // LANTLIV — economy: shared inventory (coins, seeds, harvested crops, animal products,
 // feed). Host-authoritative.
-import { CROPS, PRODUCTS, ANIMAL_SHOP, FODER_COST, START_COINS } from './config.js';
+import { CROPS, PRODUCTS, GOODS, ANIMAL_SHOP, FODER_COST, START_COINS } from './config.js';
 
 export class Inventory {
   constructor() {
@@ -8,6 +8,7 @@ export class Inventory {
     this.seeds = {};    // cropKey -> count owned
     this.harvest = {};  // cropKey -> count in storage (to sell)
     this.products = {}; // productKey (egg/milk/wool) -> count in storage (to sell)
+    this.goods = {};    // refined goods (bread/cheese/cloth) -> count in storage (to sell)
     this.foder = 0;     // bought animal feed units
     // start the family off with a few free seeds so there's something to plant
     this.seeds.carrot = 6;
@@ -17,6 +18,7 @@ export class Inventory {
   seedCount(k) { return this.seeds[k] || 0; }
   harvestCount(k) { return this.harvest[k] || 0; }
   productCount(k) { return this.products[k] || 0; }
+  goodCount(k) { return this.goods[k] || 0; }
   totalHarvest() { let n = 0; for (const k in this.harvest) n += this.harvest[k]; return n; }
 
   buySeed(k, n = 1) {
@@ -46,10 +48,29 @@ export class Inventory {
     let total = 0;
     for (const k in this.harvest) total += CROPS[k].price * this.harvest[k];
     for (const k in this.products) total += PRODUCTS[k].price * this.products[k];
+    for (const k in this.goods) total += GOODS[k].price * this.goods[k];
     this.coins += total;
     this.harvest = {};
     this.products = {};
+    this.goods = {};
     return total;
+  }
+
+  // --- refined goods (workshops) ---
+  addGood(k, n = 1) { this.goods[k] = (this.goods[k] || 0) + n; }
+  sellGood(k) {
+    if ((this.goods[k] || 0) <= 0) return 0;
+    this.goods[k]--;
+    if (this.goods[k] <= 0) delete this.goods[k];
+    this.coins += GOODS[k].price;
+    return GOODS[k].price;
+  }
+
+  // --- generic workshop input (store = 'harvest' | 'products') ---
+  hasInput(inp) { return ((this[inp.store] || {})[inp.key] || 0) > 0; }
+  takeInput(inp) {
+    const s = this[inp.store]; if (!s || (s[inp.key] || 0) <= 0) return false;
+    s[inp.key]--; if (s[inp.key] <= 0) delete s[inp.key]; return true;
   }
 
   // --- animal products ---
@@ -85,10 +106,10 @@ export class Inventory {
     this.coins -= def.price; return true;
   }
 
-  serialize() { return { c: this.coins, s: this.seeds, h: this.harvest, p: this.products, fo: this.foder }; }
+  serialize() { return { c: this.coins, s: this.seeds, h: this.harvest, p: this.products, g: this.goods, fo: this.foder }; }
   apply(d) {
     if (!d) return;
     this.coins = d.c; this.seeds = d.s || {}; this.harvest = d.h || {};
-    this.products = d.p || {}; this.foder = d.fo || 0;
+    this.products = d.p || {}; this.goods = d.g || {}; this.foder = d.fo || 0;
   }
 }

@@ -1,11 +1,12 @@
 // LANTLIV — game entry: loop, camera, rendering, tool actions, multiplayer glue
-import { TILE, ZOOM, DAY_LENGTH, CROPS, CROP_KEYS, PRODUCTS, ANIMAL_SHOP, ANIMAL_REACH } from './config.js';
+import { TILE, ZOOM, DAY_LENGTH, CROPS, CROP_KEYS, PRODUCTS, GOODS, ANIMAL_SHOP, ANIMAL_REACH } from './config.js';
 import { loadAssets } from './assets.js';
 import { Input } from './input.js';
 import { World } from './world.js';
 import { Farm } from './farm.js';
 import { Player } from './player.js';
 import { Herd } from './animals.js';
+import { Workshops } from './workshops.js';
 import { Net } from './net.js';
 import { ui } from './ui.js';
 import { getActiveMap, clearActiveMap } from './maps.js';
@@ -20,7 +21,7 @@ const cam = { x: 0, y: 0 };
 const net = new Net();
 const others = new Map(); // id -> Player (remote)
 
-let world, farm, herd, me;
+let world, farm, herd, workshops, me;
 let inv = new Inventory();
 const game = {
   running: false, isHost: false, myName: 'Bonde',
@@ -59,6 +60,14 @@ function getIntent(tool, tx, ty) {
     if (act === 'collect') return { kind: 'collectAnimal', anim: null };
     if (act === 'feed') return { kind: 'feedAnimal', anim: null };
   }
+  // a workshop you're facing — deposit raw goods or collect the finished product
+  const ws = workshops && workshops.findAt(tx, ty);
+  if (ws) {
+    const act = ws.intent(inv);
+    if (act === 'collect') return { kind: 'collectWorkshop', anim: null };
+    if (act === 'deposit') return { kind: 'depositWorkshop', anim: null };
+    return null; // facing a building: nothing else applies here
+  }
   const t = farm.get(tx, ty);
   if (t && t.crop && (t.crop.stage >= 5 || t.crop.withered)) return { kind: 'harvest', anim: 'scythe' };
   if (tool === 'hoe') { if (world.isFarmable(tx, ty) && !t) return { kind: 'till', anim: 'hoe' }; }
@@ -73,8 +82,9 @@ function doAction() {
   const { tx, ty } = me.frontTile();
   const intent = getIntent(tool, tx, ty);
   if (!intent) return;
-  // animal interactions are instant (no tool swing) — apply/send right away
-  if (intent.kind === 'feedAnimal' || intent.kind === 'collectAnimal') {
+  // animal & workshop interactions are instant (no tool swing) — apply/send right away
+  if (intent.kind === 'feedAnimal' || intent.kind === 'collectAnimal' ||
+      intent.kind === 'depositWorkshop' || intent.kind === 'collectWorkshop') {
     if (game.isHost) hostApply(intent, tx, ty);
     else net.send('act', { kind: intent.kind, tx, ty });
     return;
@@ -120,6 +130,26 @@ function hostApply(intent, tx, ty) {
         refreshEconomyUI();
       }
     }
+  } else if (intent.kind === 'depositWorkshop' || intent.kind === 'collectWorkshop') {
+    const ws = workshops.findAt(tx, ty);
+    if (ws) {
+      const fx = ws.cx(), fy = ws.ty * TILE - 6;
+      if (intent.kind === 'collectWorkshop') {
+        const good = ws.collect();
+        if (good) {
+          inv.addGood(good);
+          const txt = `+1 ${GOODS[good].emoji}`;
+          ui.addFloat(fx, fy, txt, '#fff6c9');
+          net.broadcast('fx', { wx: fx, wy: fy, text: txt, color: '#fff6c9' });
+          refreshEconomyUI();
+        }
+      } else if (ws.intent(inv) === 'deposit' && inv.takeInput(ws.def.in)) {
+        ws.deposit();
+        ui.addFloat(fx, fy, '⚙️', '#cfe8ff');
+        net.broadcast('fx', { wx: fx, wy: fy, text: '⚙️', color: '#cfe8ff' });
+        refreshEconomyUI();
+      }
+    }
   }
   game.stateDirty = true;
 }
@@ -134,6 +164,7 @@ function hostShop(kind, key) {
   else if (kind === 'sellAll') { const g = inv.sellAll(); ui.toast(g > 0 ? 'Sålde för ' + g + ' 🪙' : 'Inget att sälja'); }
   else if (kind === 'sellOne') inv.sellOne(key);
   else if (kind === 'sellProduct') inv.sellProduct(key);
+  else if (kind === 'sellGood') inv.sellGood(key);
   else if (kind === 'buyFoder') { if (inv.buyFoder()) ui.toast('Köpte foder 🌾'); else ui.toast('Inte råd!'); }
   else if (kind === 'buyAnimal') {
     if (inv.buyAnimal(key)) { herd.addBaby(key); ui.toast('Köpte ' + ANIMAL_SHOP[key].name + '! 🐣'); }
@@ -160,7 +191,7 @@ function update(dt) {
   me.update(dt, Input, world);
   for (const p of others.values()) p.updateRemote(dt);
 
-  if (game.isHost) { farm.update(dt); herd.updateHost(dt); }
+  if (game.isHost) { farm.update(dt); herd.updateHost(dt); workshops.updateHost(dt); }
   else herd.updateRemote(dt);
 
   // day/night clock (host authoritative, both advance for smoothness)
@@ -223,6 +254,7 @@ function render(dt) {
   list.push(me);
   for (const p of others.values()) list.push(p);
   herd.collectSprites(list);
+  workshops.collectSprites(list);
   list.sort((a, b) => a.sortY - b.sortY);
   for (const s of list) s.draw(ctx, cam);
 
@@ -259,7 +291,7 @@ function broadcastPlayers() {
 }
 function broadcastState() {
   net.broadcast('state', {
-    f: farm.serialize(), h: herd.serialize(), i: inv.serialize(),
+    f: farm.serialize(), h: herd.serialize(), w: workshops.serialize(), i: inv.serialize(),
     d: game.day, t: Math.round(game.dayTime),
   });
 }
@@ -282,7 +314,7 @@ net.on({
       if (t === 'map') {
         rebuildWorld(d);
       } else if (t === 'state') {
-        farm.apply(d.f); herd.apply(d.h); inv.apply(d.i);
+        farm.apply(d.f); herd.apply(d.h); if (d.w) workshops.apply(d.w); inv.apply(d.i);
         game.day = d.d; game.dayTime = d.t;
         ui.setDay(d.d); refreshEconomyUI();
       } else if (t === 'players') {
@@ -298,14 +330,14 @@ net.on({
 });
 
 function stateMsg() {
-  return { f: farm.serialize(), h: herd.serialize(), i: inv.serialize(), d: game.day, t: Math.round(game.dayTime) };
+  return { f: farm.serialize(), h: herd.serialize(), w: workshops.serialize(), i: inv.serialize(), d: game.day, t: Math.round(game.dayTime) };
 }
 
 // ---------- save / load (host only, localStorage) ----------
 function saveKey() { return 'lantliv_save' + (game.mapData ? '_custom' : ''); }
 function saveGame() {
   if (!game.isHost) return;
-  try { localStorage.setItem(saveKey(), JSON.stringify({ inv: inv.serialize(), farm: farm.serialize(), herd: herd.serialize(), day: game.day, t: Math.round(game.dayTime) })); } catch {}
+  try { localStorage.setItem(saveKey(), JSON.stringify({ inv: inv.serialize(), farm: farm.serialize(), herd: herd.serialize(), workshops: workshops.serialize(), day: game.day, t: Math.round(game.dayTime) })); } catch {}
 }
 function loadGame() {
   try {
@@ -313,6 +345,7 @@ function loadGame() {
     const d = JSON.parse(s);
     inv.apply(d.inv); farm.apply(d.farm);
     if (d.herd) herd.apply(d.herd);
+    if (d.workshops) workshops.apply(d.workshops);
     game.day = d.day || 1; game.dayTime = d.t ?? DAY_LENGTH * 0.25;
     return true;
   } catch { return false; }
@@ -326,6 +359,7 @@ function newGame(isHost, mapData) {
   farm = new Farm(world);
   world.farm = farm; // world renders unified dirt (world plots + tilled soil)
   herd = new Herd();
+  workshops = new Workshops(); workshops.build(world);
   me = new Player({ isLocal: true, name: game.myName, char: ui.selectedChar, x: world.spawn.x, y: world.spawn.y });
   me.tool = ui.currentTool();
   others.clear();
@@ -383,6 +417,7 @@ function rebuildWorld(mapData) {
   world = new World(game.mapData);
   farm = new Farm(world);
   world.farm = farm; // world renders unified dirt (world plots + tilled soil)
+  workshops = new Workshops(); workshops.build(world);
   me.x = Math.min(Math.max(me.x, TILE), (world.w - 1) * TILE);
   me.y = Math.min(Math.max(me.y, TILE * 2), (world.h - 1) * TILE);
 }
@@ -407,6 +442,7 @@ async function boot() {
     onSellAll: () => { if (game.running) shopAction('sellAll'); },
     onSellOne: (k) => { if (game.running) shopAction('sellOne', k); },
     onSellProduct: (k) => { if (game.running) shopAction('sellProduct', k); },
+    onSellGood: (k) => { if (game.running) shopAction('sellGood', k); },
     onBuyFoder: () => { if (game.running) shopAction('buyFoder'); },
     onBuyAnimal: (k) => { if (game.running) shopAction('buyAnimal', k); },
     onOpenBag: () => refreshEconomyUI(),
